@@ -6,8 +6,14 @@
  *
  * (C) 2007, 2010 Mike Dahlin
  *
+ * Michael Janusa mjjanusa@yahoo.com          3_slip days
+ * Chinedu Egboh  tobe_egboh@mail.utexas.edu  3_slip days
+ *
  */
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.concurrent.locks.Condition;
+import java.io.FileNotFoundException;;
 
 public class ADisk{
 
@@ -16,6 +22,12 @@ public class ADisk{
   //-------------------------------------------------------
   public static final int REDO_LOG_SECTORS = 1024;
 
+  //This map is to hold all the trans ID's
+  private HashMap<TransID, Transaction> transactions = new HashMap<TransID, Transaction>();
+  
+  SimpleLock ADisk_lock;
+  Condition resultAvailable;
+  
   //-------------------------------------------------------
   //
   // Allocate an ADisk that stores its data using
@@ -31,6 +43,12 @@ public class ADisk{
   //-------------------------------------------------------
   public ADisk(boolean format)
   {
+	  if(format == true){
+		  
+	  }
+	  else{
+		  
+	  }
   }
 
   //-------------------------------------------------------
@@ -43,7 +61,7 @@ public class ADisk{
   //-------------------------------------------------------
   public int getNSectors()
   {
-    return -1; // Fixme
+    return Disk.NUM_OF_SECTORS - ADisk.REDO_LOG_SECTORS;
   } 
 
   //-------------------------------------------------------
@@ -165,3 +183,4 @@ public class ADisk{
 
 
 }
+

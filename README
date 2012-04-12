@@ -1,16 +1,12 @@
-Assignment Goals
+SECTION 1:
 
-    To learn about key storage system concepts: logging and transactions
-    To provide the basis for project FS, where you will build a reliable file system.
+Michael Janusa mjjanusa@yahoo.com          3_slip days
+Chinedu Egboh  tobe_egboh@mail.utexas.edu  3_slip days
 
-Overview of Project
+SECTION 2:
 
-    In projects ADisk and FS, you will construct a user-level library that presents the abstraction of a reliable file system called RFS. In order to manage the complexity, you will implement this system in several phases, each of which presents a successively higher-level abstraction. You will be given the abstraction of a raw disk interface. On top of this you will build
+ADisk.java
 
-        An atomic disk
-        A reliable multi-level tree
-        A reliable flat file system
-        A reliable directory-based file system (RFS)
+SECTION 3:
 
-    This project, deals only with step 1 above. It is very important to do an excellent job on this part of the project, or you will have significant problems in the next part.
-
+SECTION 4:
