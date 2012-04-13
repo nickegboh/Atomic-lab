@@ -10,14 +10,30 @@
  *
  */
 public class TransID{
+	
+    private static int tid = 0;
+    private SimpleLock TransIDLock = new SimpleLock();
+    
+    public TransID ( tid = 0; ) {}
 
-  //
-  // Implement this class
-  //
-
-  public TransID()
-  {
-  }
-
-  
-}
+    public int newTID(){
+                try{
+                        TransIDLock.lock();
+                        return last_tid++;
+                } finally {
+                        TransIDLock.unlock();
+                }
+        }
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
