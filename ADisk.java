@@ -41,7 +41,7 @@ public class ADisk{
   // and redo any committed transactions. 
   //
   //-------------------------------------------------------
-  public ADisk(boolean format)
+  public ADisk(boolean format)// Not done yet
   {
 	  if(format == true){
 		  
@@ -59,7 +59,7 @@ public class ADisk{
   // number will be smaller than Disk.NUM_OF_SECTORS.
   //
   //-------------------------------------------------------
-  public int getNSectors()
+  public static int getNSectors()
   {
     return Disk.NUM_OF_SECTORS - ADisk.REDO_LOG_SECTORS;
   } 
@@ -69,9 +69,11 @@ public class ADisk{
   // Begin a new transaction and return a transaction ID
   //
   //-------------------------------------------------------
-  public TransID beginTransaction()
+  public TransID beginTransaction()// Not done yet
   {
-    return null; // Fixme
+    Transaction collect_trans = new Transaction();
+    
+    return null;
   }
 
   //-------------------------------------------------------
@@ -106,9 +108,22 @@ public class ADisk{
   // 
   //-------------------------------------------------------
   public void commitTransaction(TransID tid) 
-    throws IOException, IllegalArgumentException
-  {
+    throws IOException, IllegalArgumentException{// Not yet complete
+	  // Is transaction active
+	  if(!transactions.containsKey(tid)){
+		  throw new IllegalArgumentException("No transaction with tid: " + tid);
+	  }
+	  
+	  // Call commit
+//	  try{
+		  transactions.get(tid).commit();
+//	  }
+//	  catch(AttemptedWriteToDeadTransactionException e){
+//		  throw new IllegalArgumentException();
+//	  }
+//    }
   }
+  
 
 
 
@@ -123,8 +138,8 @@ public class ADisk{
   // 
   //-------------------------------------------------------
   public void abortTransaction(TransID tid) 
-    throws IllegalArgumentException
-  {
+    throws IllegalArgumentException{// Not done yet
+	  
   }
 
 
@@ -152,8 +167,8 @@ public class ADisk{
   //-------------------------------------------------------
   public void readSector(TransID tid, int sectorNum, byte buffer[])
     throws IOException, IllegalArgumentException, 
-    IndexOutOfBoundsException
-  {
+    IndexOutOfBoundsException{// Not done yet
+	  
   }
 
   //-------------------------------------------------------
@@ -177,10 +192,9 @@ public class ADisk{
   //-------------------------------------------------------
   public void writeSector(TransID tid, int sectorNum, byte buffer[])
     throws IllegalArgumentException, 
-    IndexOutOfBoundsException
-  {
+    IndexOutOfBoundsException{// Not done yet
+	  
   }
 
 
 }
-
