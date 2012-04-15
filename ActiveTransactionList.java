@@ -34,7 +34,7 @@ public class ActiveTransactionList{
     public Transaction get(TransID tid){
     	try {
     		activeTransactionsMutex.lock();
-            Transaction temp = activeTransactions.get(tid);
+            Transaction temp = activeTransactions.get(tid.getTidfromTransID());
           } 
           finally {
         	  activeTransactionsMutex.unlock();
@@ -45,7 +45,7 @@ public class ActiveTransactionList{
     public Transaction remove(TransID tid){
     	try {
     		activeTransactionsMutex.lock();
-            Transaction temp = activeTransactions.remove(tid);
+            Transaction temp = activeTransactions.remove(tid.getTidfromTransID());
           } 
           finally {
         	  activeTransactionsMutex.unlock();
