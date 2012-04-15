@@ -20,27 +20,24 @@ public class TransID{
   // Implement this class
   //
 	 public static long counter = 0;
-	 private static int last_tid = 0;
 	 private SimpleLock TransIDLock = new SimpleLock();
 	 
 	 // Constructor
-	 public TransID (int last_tid) {
-		 last_tid = 0;
-	 }
+	 public TransID () { }
 
-	 public int newTID(){
+	 public int next(){
 		 try{
 			 TransIDLock.lock();
-	         return last_tid++;
+			 return counter++;
 		 } 
 		 finally {
 			 TransIDLock.unlock();
 	    }
 	 }
 
-	 public static long next() {
-		 return counter++;
-	 }
+	 /*public static long next() {
+		
+	 }*/
 	 // for use in recovery
 	 public static void setCounter(long c) {
 		 counter = c;
