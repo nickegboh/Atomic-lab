@@ -35,7 +35,7 @@ public class TransID{
 	    }
 	 }
 
-	 public long getTransIdLong(){
+	 public long getTidfromTransID(){
 	 	 return this.tid; 
 	 }
 
