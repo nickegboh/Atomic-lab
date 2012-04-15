@@ -12,6 +12,8 @@
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.HashMap;
+import java.util.concurrent.locks.Condition;
 
 public class Transaction{
 
@@ -254,8 +256,10 @@ public class Transaction{
     // a secNum and put the body of the
     // write in byte array. Used for writeback.
     //
-    public int getUpdateI(int i, byte buffer[]){// Not done yet
-        return -1;
+    public int getUpdateI(int i, byte buffer[]){// Not quite done yet
+    	int temp_hold = 0;
+    	temp_hold = buffer[i];
+        return temp_hold;
     }
 
     
@@ -332,4 +336,5 @@ public class Transaction{
       public ByteBuffer getFooter() { return footer; }
     
 }
+
 

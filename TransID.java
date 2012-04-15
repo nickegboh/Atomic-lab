@@ -9,15 +9,24 @@
  * (C) 2007 Mike Dahlin
  *
  */
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.concurrent.locks.Condition;
+import java.io.FileNotFoundException;
+
 public class TransID{
 
   //
   // Implement this class
   //
-	 private static int tid = 0;
+	 public static long counter = 0;
+	 private static int last_tid = 0;
 	 private SimpleLock TransIDLock = new SimpleLock();
-	    
-/*	 public TransID (tid = 0;) {}
+	 
+	 // Constructor
+	 public TransID (int last_tid) {
+		 last_tid = 0;
+	 }
 
 	 public int newTID(){
 		 try{
@@ -28,7 +37,6 @@ public class TransID{
 			 TransIDLock.unlock();
 	    }
 	 }
-*/	 public static long counter = 0;
 
 	 public static long next() {
 		 return counter++;
