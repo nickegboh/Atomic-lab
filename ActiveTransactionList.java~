@@ -12,7 +12,7 @@
 import java.util.HashMap;
 public class ActiveTransactionList{
 			
-    private Hashmap activeTransactions;
+    Hashmap activeTransactions;
     private SimpleLock activeTransactionsMutex;
         
     public ActiveTransactionList() {
