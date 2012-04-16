@@ -6,8 +6,8 @@
  *
  * (C) 2007, 2010 Mike Dahlin
  *
- * Michael Janusa mjjanusa@yahoo.com          3_slip days
- * Chinedu Egboh  tobe_egboh@mail.utexas.edu  3_slip days
+ * Michael Janusa mjjanusa@yahoo.com          5_slip days
+ * Chinedu Egboh  tobe_egboh@mail.utexas.edu  5_slip days
  *
  */
 import java.io.IOException;
