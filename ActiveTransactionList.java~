@@ -9,18 +9,24 @@
  * (C) 2011 Mike Dahlin
  *
  */
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 public class ActiveTransactionList{
-			
-    Hashmap activeTransactions;
+
+    /*
+     * You can alter or add to these suggested methods.
+     */
+	private HashMap activeTransactions;
     private SimpleLock activeTransactionsMutex;
-        
+    Transaction temp = new Transaction();    
     public ActiveTransactionList() {
-    	writes = new HashMap<Long, Transaction>(); 
+    	//writes = new HashMap<Integer, ByteBuffer>();
+ //   	writes = new HashMap<Long, Transaction>(); 
     	activeTransactionsMutex = new SimpleLock();
       }
-    
+
     public void put(Transaction trans){
+        //System.exit(-1); // TBD
     	try {
     		activeTransactionsMutex.lock();
             Long TID = trans.getTid();
@@ -32,9 +38,11 @@ public class ActiveTransactionList{
     }
 
     public Transaction get(TransID tid){
+        //System.exit(-1); // TBD
+        //return null;
     	try {
     		activeTransactionsMutex.lock();
-            Transaction temp = activeTransactions.get(tid);
+            Transaction temp = (Transaction)activeTransactions.get(tid.getTidfromTransID());
           } 
           finally {
         	  activeTransactionsMutex.unlock();
@@ -43,9 +51,11 @@ public class ActiveTransactionList{
     }
 
     public Transaction remove(TransID tid){
+        //System.exit(-1); // TBD
+        //return null;
     	try {
     		activeTransactionsMutex.lock();
-            Transaction temp = activeTransactions.remove(tid);
+            Transaction temp = (Transaction)activeTransactions.remove(tid.getTidfromTransID());
           } 
           finally {
         	  activeTransactionsMutex.unlock();

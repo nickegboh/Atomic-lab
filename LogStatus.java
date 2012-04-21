@@ -1,3 +1,8 @@
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+
+
 /*
  * LogStatus.java
  *
@@ -14,23 +19,81 @@
  */
 public class LogStatus{
 
-    // 
-    // Return the index of the log sector where
-    // the next transaction should go.
-    //
-    public int reserveLogSectors(int nSectors)
-    {
-        return -1;
-    }
-
+    //LOG LOCK
+    private static SimpleLock logLock;
+	
+    //head - tail
+    int log_head = 1; 
+    int log_tail = 1; 
+    
+    //numbrt of available sectors in the log
+    int available_sectors = ADisk.REDO_LOG_SECTORS - 1; 
+    
+    //static length of redo log
+    static int redo_log_size = ADisk.REDO_LOG_SECTORS - 1; 
+    
+    //head - tail locations in log
+    static int head_location = ADisk.REDO_LOG_SECTORS - 1;
+    	
     //
     // The write back for the specified range of
     // sectors is done. These sectors may be safely 
     // reused for future transactions. (Circular log)
     //
-    public int writeBackDone(int startSector, int nSectors)
+    public void writeBackDone(int startSector, int nSectors) throws IllegalArgumentException, IOException
     {
-        return -1;
+        try{
+		logLock.lock();
+		assert(log_head == startSector); 
+		log_head += nSectors;
+		log_head = log_head % redo_log_size;
+		available_sectors += nSectors;
+		
+		//update head on disk 
+		updateHeadTail();
+	}
+	finally { 
+		logLock.unlock();
+	}
+        
+    }
+    
+    //
+    //Write a transaction to the log.  Receives transaction in the form of an array of bytes.  
+    //Returns true for success and false for fail.  
+    public boolean logWrite(byte[] transaction, TransID tid){
+        try{
+		logLock.lock();
+		int sectors = transaction.length / 512;
+		
+		//assert bytes are even sector length
+		assert((sectors % Disk.SECTOR_SIZE) == 0); 
+		//assert this is a valid transaction
+		assert(sectors >= 3);
+				
+		//reserve sectors for disk 
+		int transaction_head = reserveLogSectors(sectors);
+		
+		if(transaction_head == -1)
+			return false;
+		
+		int sectorStart = 0; 
+		int sectorTail = Disk.SECTOR_SIZE - 1; 
+		
+		for(int i = 0; i < sectors; i++){
+			byte [] thisSector = Arrays.copyOfRange(transaction, sectorStart, sectorTail);	
+			ADisk.d.startRequest(Disk.WRITE, tid.getTidfromTransID(), transaction_head, thisSector);
+			sectorStart += Disk.SECTOR_SIZE;
+			sectorTail += Disk.SECTOR_SIZE; 
+			transaction_head++; 
+			transaction_head = transaction_head % redo_log_size; 
+		}
+		
+	}
+	finally { 
+		logLock.unlock();
+		return true; 
+	}	    
     }
 
     //
@@ -39,38 +102,115 @@ public class LogStatus{
     // in the log that are in-use by committed
     // transactions with pending write-backs
     //
-    public void recoverySectorsInUse(int startSector, int nSectors)
+    public void recoveryInitializeLog() throws IllegalArgumentException, IOException
     {
+    	    try{
+                    logLock.lock();
+		    // get head and tail info from disk
+		    getHeadTail();
+		    
+		    // calculate the available sectors
+		    if(log_head <= log_tail) 
+			    available_sectors =  redo_log_size - (log_tail - log_head);
+		    else
+			    available_sectors = redo_log_size - (redo_log_size - 1 - log_head) - log_tail;
+	    }
+	    finally { 
+	    	    logLock.unlock();
+	    }
+    	    
     }
-
-    //
-    // On recovery, find out where to start reading
-    // log from. LogStatus should reserve a sector
-    // in a well-known location. (Like the log, this sector
-    // should be "invisible" to everything above the
-    // ADisk interface.) You should update this
-    // on-disk information at appropriate times.
-    // Then, on recovery, you can read this information 
-    // to find out where to start processing the log from.
-    //
-    // NOTE: You can update this on-disk info
-    // when you fininish write-back for a transaction. 
-    // But, you don't need to keep this on-disk
-    // sector exactly in sync with the tail
-    // of the log. It can point to a transaction
-    // whose write-back is complete (there will
-    // be a bit of repeated work on recovery, but
-    // not a big deal.) On the other hand, you must
-    // make sure of three things: (1) it should always 
-    // point to a valid header record; (2) if a 
-    // transaction T's write back is not complete,
-    // it should point to a point no later than T's
-    // header; (3) reserveLogSectors must block
-    // until the on-disk log-start-point points past
-    // the sectors about to be reserved/reused.
-    //
-    public int logStartPoint(){
-        return -1;
+    
+     // 
+    // Return the index of the log sector where
+    // the next transaction should go.
+    // Return -1 if not enough space in the redo log for number of Sectors      
+    private int reserveLogSectors(int nSectors) throws IllegalArgumentException, IOException
+    {
+    	if(available_sectors >= nSectors){
+    		int temp = log_tail; 
+    		log_tail += nSectors;
+    		log_tail = log_tail % redo_log_size;
+    		available_sectors -= nSectors; 
+    		
+    		//update tail on disk 
+		    updateHeadTail();
+    		
+    		return temp;	
+    	}
+    	else 
+    		return -1; 
     }
+    
+    // Update the head / tail on disk from the head tail variables.  
+    private void updateHeadTail() throws IllegalArgumentException, IOException{
+    	ByteBuffer b = ByteBuffer.allocate(Disk.SECTOR_SIZE);
+        b.putInt(0, log_head); 
+        b.putInt(4, log_tail);
+        byte[] headerBlock = b.array();
+        
+        ADisk.d.startRequest(Disk.WRITE, -1, head_location, headerBlock);
+        
+        return; 
+    }
+    
+    //Set the head tail variables from the variables on disk 
+    private void getHeadTail() throws IllegalArgumentException, IOException {
+    	byte[] headerBlock = new byte[Disk.SECTOR_SIZE];
+    	ADisk.d.startRequest(Disk.READ, -1, head_location, headerBlock);
+    	ByteBuffer b = ByteBuffer.allocate(Disk.SECTOR_SIZE);
+    	b.put(headerBlock);
+    	log_head = b.getInt(0); 
+    	log_tail = b.getInt(4); 
+    }
+    
+    
+    // DEBUGGING METHODS
+    	    // Get the head sector number from the head variable on disk
+	    public int getHeadDisk () {
+	    	int temp = -1; 
+		    try{
+	           logLock.lock();
+				byte[] headerBlock = new byte[Disk.SECTOR_SIZE];
+				ADisk.d.startRequest(Disk.READ, -1, head_location, headerBlock);
+				ByteBuffer b = ByteBuffer.allocate(Disk.SECTOR_SIZE);
+				b.put(headerBlock);   
+				temp =  b.getInt(0);
+			} catch (IllegalArgumentException e) {
+				System.out.println("IllegalArgumentException getHeadDisk() LogStatus.java.\n");
+                System.exit(1);
+			} catch (IOException e) {
+				System.out.println("IOException getHeadDisk() LogStatus.java.\n");
+                System.exit(1);
+			}
+			finally { 
+				logLock.unlock();
+				return temp;
+			}
+	    }
+	    
+	    // Get the tail sector number from the tail variable on disk 
+	    public int getTailDisk () {
+	    	int temp = -1; 
+		    try{
+	           logLock.lock();
+				byte[] headerBlock = new byte[Disk.SECTOR_SIZE];
+				ADisk.d.startRequest(Disk.READ, -1, head_location, headerBlock);
+				ByteBuffer b = ByteBuffer.allocate(Disk.SECTOR_SIZE);
+				b.put(headerBlock);   
+				temp =  b.getInt(4);
+			} catch (IllegalArgumentException e) {
+				System.out.println("IllegalArgumentException getHeadDisk() LogStatus.java.\n");
+                System.exit(1);
+			} catch (IOException e) {
+				System.out.println("IOException getHeadDisk() LogStatus.java.\n");
+                System.exit(1);
+			}
+			finally { 
+				logLock.unlock();
+				return temp;
+			}
+	    }
+    // END DEBUGGING METHODS
     
 }

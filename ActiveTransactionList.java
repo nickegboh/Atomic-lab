@@ -21,7 +21,7 @@ public class ActiveTransactionList{
     Transaction temp = new Transaction();    
     public ActiveTransactionList() {
     	//writes = new HashMap<Integer, ByteBuffer>();
- //   	writes = new HashMap<Long, Transaction>(); 
+    	activeTransactions = new HashMap<Long, Transaction>(); 
     	activeTransactionsMutex = new SimpleLock();
       }
 

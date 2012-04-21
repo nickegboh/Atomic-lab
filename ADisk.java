@@ -28,6 +28,8 @@ public class ADisk{
   SimpleLock ADisk_lock;
   Condition resultAvailable;
   
+  public static Disk d;
+  
   //-------------------------------------------------------
   //
   // Allocate an ADisk that stores its data using
@@ -195,6 +197,5 @@ public class ADisk{
     IndexOutOfBoundsException{// Not done yet
 	  
   }
-
-
+  
 }
