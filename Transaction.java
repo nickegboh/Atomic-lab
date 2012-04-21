@@ -47,7 +47,7 @@ public class Transaction{
     //
     // Constructors
     public Transaction() {
-      //Tid = TransID.next();
+      Tid = new TransID().getTidfromTransID();
       writes = new HashMap<Integer, ByteBuffer>(); 
       mutex = new SimpleLock();
       stat = Status.INPROGRESS;
@@ -64,9 +64,7 @@ public class Transaction{
     //
 
     public void addWrite(int sectorNum, byte buffer[])
-    throws IllegalArgumentException, 
-           IndexOutOfBoundsException
-    {
+    throws IllegalArgumentException, IndexOutOfBoundsException{
     	try {
             mutex.lock();
             if(stat != Status.INPROGRESS) {
@@ -92,45 +90,44 @@ public class Transaction{
     throws IllegalArgumentException, 
            IndexOutOfBoundsException
     {
-    	boolean ret = false;
+    	boolean read_yet = false;
         try {
           mutex.lock();
-          if(stat != Status.INPROGRESS) {
+          if(stat != Status.INPROGRESS) {					//If not in progress, throw out with exception 
             throw new IllegalArgumentException("transaction " + Tid + " not in progress");
           }
-          if(sectorNum >= ADisk.getNSectors()) {
+          if(sectorNum >= ADisk.getNSectors()) {			//If invalid secNum, throw out with exception
             throw new IndexOutOfBoundsException("invalid sectorNum " + sectorNum);
           }
+          // Write sector the return true
           ByteBuffer bufToReturn = writes.get(sectorNum);
           if(bufToReturn != null) {
             System.arraycopy(bufToReturn.array(), 0, buffer, 0, buffer.length);
-            ret = true;
+            read_yet = true;
           }
         }
         finally {
           mutex.unlock();
         }
-        return ret;
+        return read_yet;
     }
 
 
-    public void commit()
-    throws IOException, IllegalArgumentException
-    {
+    public void commit() throws IOException, IllegalArgumentException{
     	try {
             mutex.lock();
 
-            if(stat != Status.INPROGRESS) {
+            if(stat != Status.INPROGRESS) {					//If not in progress, throw out with exception
               throw new IllegalArgumentException("transaction " + Tid + " not in progress");
             }
 
             Set<Map.Entry<Integer,ByteBuffer>> foo = writes.entrySet();
 
             int numSec = writes.size();
-
-            int headerlen = getHeaderLenInSectors(numSec)*512;
-            int bodylen   = 512*numSec;
-            int footerlen = 512;
+            //Disk.SECTOR_SIZE gives you 512
+            int headerlen = getHeaderLenInSectors(numSec)* Disk.SECTOR_SIZE;
+            int bodylen   = Disk.SECTOR_SIZE*numSec;
+            int footerlen = Disk.SECTOR_SIZE;
 
             header = ByteBuffer.wrap(new byte[headerlen]);
             body = ByteBuffer.wrap(new byte[bodylen]);
