@@ -188,8 +188,8 @@ public class LogStatus{
 			}
 			finally { 
 				logLock.unlock();
-				return temp;
 			}
+			return temp;
 	    }
 	    
 	    // Get the tail sector number from the tail variable on disk 
@@ -211,8 +211,8 @@ public class LogStatus{
 			}
 			finally { 
 				logLock.unlock();
-				return temp;
 			}
+			return temp;
 	    }
     // END DEBUGGING METHODS
     
