@@ -9,7 +9,7 @@
  * (C) 2011 Mike Dahlin
  *
  */
-import java.nio.ByteBuffer;
+//import java.nio.ByteBuffer;
 import java.util.HashMap;
 public class ActiveTransactionList{
 
@@ -20,7 +20,6 @@ public class ActiveTransactionList{
     private SimpleLock activeTransactionsMutex;
     Transaction temp = new Transaction();    
     public ActiveTransactionList() {
-    	//writes = new HashMap<Integer, ByteBuffer>();
     	activeTransactions = new HashMap<Long, Transaction>(); 
     	activeTransactionsMutex = new SimpleLock();
       }

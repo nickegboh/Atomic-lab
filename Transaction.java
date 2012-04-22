@@ -20,7 +20,7 @@ public class Transaction{
 	private long Tid;
     private Map<Integer, ByteBuffer> writes; // sector # to byteBuffer
     private SimpleLock mutex;
-    private Status stat;
+    private Status the_stat;
 
     private int logStart;
     private int logNSectors;
@@ -50,14 +50,14 @@ public class Transaction{
       Tid = new TransID().getTidfromTransID();
       writes = new HashMap<Integer, ByteBuffer>(); 
       mutex = new SimpleLock();
-      stat = Status.INPROGRESS;
+      the_stat = Status.INPROGRESS;
     }
     
     private Transaction(long tid) {
       Tid = tid;
       writes = new HashMap<Integer, ByteBuffer>(); 
       mutex = new SimpleLock();
-      stat = Status.INPROGRESS;
+      the_stat = Status.INPROGRESS;
     }
     // 
     // You can modify and add to the interfaces
@@ -67,7 +67,7 @@ public class Transaction{
     throws IllegalArgumentException, IndexOutOfBoundsException{
     	try {
             mutex.lock();
-            if(stat != Status.INPROGRESS) {
+            if(the_stat != Status.INPROGRESS) {
               throw new IllegalArgumentException("transaction " + Tid + " is not in progress");
             }
             if(sectorNum >= ADisk.getNSectors()) {
@@ -93,7 +93,7 @@ public class Transaction{
     	boolean read_yet = false;
         try {
           mutex.lock();
-          if(stat != Status.INPROGRESS) {					//If not in progress, throw out with exception 
+          if(the_stat != Status.INPROGRESS) {					//If not in progress, throw out with exception 
             throw new IllegalArgumentException("transaction " + Tid + " not in progress");
           }
           if(sectorNum >= ADisk.getNSectors()) {			//If invalid secNum, throw out with exception
@@ -117,16 +117,16 @@ public class Transaction{
     	try {
             mutex.lock();
 
-            if(stat != Status.INPROGRESS) {					//If not in progress, throw out with exception
+            if(the_stat != Status.INPROGRESS) {					//If not in progress, throw out with exception
               throw new IllegalArgumentException("transaction " + Tid + " not in progress");
             }
 
             Set<Map.Entry<Integer,ByteBuffer>> foo = writes.entrySet();
 
-            int numSec = writes.size();
-            //Disk.SECTOR_SIZE gives you 512
-            int headerlen = getHeaderLenInSectors(numSec)* Disk.SECTOR_SIZE;
-            int bodylen   = Disk.SECTOR_SIZE*numSec;
+            int num_Sec_size = writes.size();
+            												//Disk.SECTOR_SIZE gives you 512
+            int headerlen = getHDRLenInSecs(num_Sec_size) * Disk.SECTOR_SIZE;
+            int bodylen   = Disk.SECTOR_SIZE * num_Sec_size;
             int footerlen = Disk.SECTOR_SIZE;
 
             header = ByteBuffer.wrap(new byte[headerlen]);
@@ -154,22 +154,21 @@ public class Transaction{
             footer.position(0);
           }
           finally {
-            stat = Status.COMMITTED;
+        	  the_stat = Status.COMMITTED;
             mutex.unlock();
           }
     }
 
-    public void abort()
-    throws IOException, IllegalArgumentException
+    public void abort() throws IOException, IllegalArgumentException
     {
     	try {
             mutex.lock();
-            if(stat == Status.COMMITTED) {
+            if(the_stat == Status.COMMITTED) {
               throw new IllegalArgumentException("transaction " + Tid + " already Done");
             }
           }
           finally {
-            stat = Status.ABORTED;
+        	  the_stat = Status.ABORTED;
             mutex.unlock();
           }
     }
@@ -179,15 +178,13 @@ public class Transaction{
     // the log (on commit), get a committed transaction's writes
     // (for writeback), and get a transaction from the log
     // to memory (for recovery).
-    //
 
-    //
     // For a committed transaction, return a byte
     // array that can be written to some number
     // of sectors in the log in order to place
     // this transaction on disk. Note that the
     // first sector is the header, which lists
-    // which sectors the transaction updaets
+    // which sectors the transaction updates
     // and the last sector is the commit. 
     // The k sectors between should contain
     // the k writes by this transaction.
@@ -196,7 +193,7 @@ public class Transaction{
     	byte[] bufToRet = null;
         try {
           mutex.lock();
-          if(stat == Status.COMMITTED) {
+          if(the_stat == Status.COMMITTED) {
             bufToRet = new byte[header.array().length + body.array().length + footer.array().length];
             System.arraycopy(header.array(), 0, bufToRet, 0, header.array().length);
             System.arraycopy(body.array(), 0, bufToRet, header.array().length, body.array().length);
@@ -226,18 +223,18 @@ public class Transaction{
     	return logNSectors;
     }
 
-
-
     //
     // For a committed transaction, return
     // the number of sectors that this
     // transaction updates. Used for writeback.
     //
-    public int getNUpdatedSectors(){						//throws IllegalArgumentException 
-    	if(stat != Status.COMMITTED) {
-            throw new IllegalArgumentException("transaction yet to be committed");
-          }
-          return writes.size();
+    public int getNUpdatedSectors(){						// Not quite done yet***//throws IllegalArgumentException 
+    	int num_Sec_size = writes.size();
+    	if(the_stat != Status.COMMITTED) {
+            throw new IllegalArgumentException("At this stage transaction yet to be committed");
+    	}
+    	
+    	return num_Sec_size;
     }
 
     //
@@ -249,6 +246,9 @@ public class Transaction{
     //
     public int getUpdateI(int i, byte buffer[]){			// Not quite done yet***
     	int temp_hold = 0;
+    	if(the_stat != Status.COMMITTED) {
+            throw new IllegalArgumentException("At this stage transaction yet to be committed");
+          }
     	temp_hold = buffer[i];
         return temp_hold;
     }
@@ -262,19 +262,19 @@ public class Transaction{
     // header and commit) to get the full transaction.
     //
     public static int parseHeader(byte buffer[]){
-    	ByteBuffer bb = ByteBuffer.wrap(buffer);
+    	ByteBuffer by_buff = ByteBuffer.wrap(buffer);
 
         													// first 4 bytes is the Header Tag
-        int tag = bb.getInt();
+        int tag = by_buff.getInt();
         assert tag == Transaction.HDR_Tag;
 
         // next 8 bytes = Tid
-        //long tid = bb.getLong();
+        //long tid = by_buff.getLong();
 
         // next 4 bytes = num of sectors
-        int numUpdates = bb.getInt();
+        int numUpdates = by_buff.getInt();
 
-        int headerLen = getHeaderLenInSectors(numUpdates);
+        int headerLen = getHDRLenInSecs(numUpdates);
         return headerLen + numUpdates + 1; 					// header + numSectors + commit
     }
 
@@ -284,30 +284,30 @@ public class Transaction{
     // committed transaction and return it. Otherwise
     // throw an exception or return null.
     public static Transaction parseLogBytes(byte buffer[]){
-    	ByteBuffer bb = ByteBuffer.wrap(buffer);
+    	ByteBuffer by_buff = ByteBuffer.wrap(buffer);
 
-        long tid = bb.getLong();
+        long tid = by_buff.getLong();
         Transaction newTrans = new Transaction(tid);
 
         													// Populate the sector number list
-        int numUpdates = bb.getInt();
+        int numUpdates = by_buff.getInt();
         ArrayList<Integer> sectorNums = new ArrayList<Integer>();
         for(int i = 0; i < numUpdates; ++i) {
-          sectorNums.add(bb.getInt());
+          sectorNums.add(by_buff.getInt());
         }
 
         													// Push position to first sector after the header
-        bb.position(getHeaderLenInSectors(numUpdates)*512);
+        by_buff.position(getHDRLenInSecs(numUpdates) * Disk.SECTOR_SIZE);
 
         													// For each sector, write with (sectorNum[i], update)
         for(int i = 0; i < numUpdates; ++i) {
-          byte[] update = new byte[512];
-          bb.get(update);
+          byte[] update = new byte[Disk.SECTOR_SIZE];
+          by_buff.get(update);
           newTrans.addWrite(sectorNums.get(i), update);
         }
 
         													// read Tid from commit
-        long endTid = bb.getLong();
+        long endTid = by_buff.getLong();
         if(endTid != tid) {
           return null;
         }
@@ -315,9 +315,9 @@ public class Transaction{
         return newTrans;
     }
     
-    private static int getHeaderLenInSectors(int numSec){
+    private static int getHDRLenInSecs(int numSec){
         int temp = 4 + 8 + 4 + (8 * numSec);
-        return (temp / 512) + (temp % 512 == 0 ? 0 : 1);
+        return (temp / Disk.SECTOR_SIZE) + (temp % Disk.SECTOR_SIZE == 0 ? 0 : 1);
     }
     
 }
