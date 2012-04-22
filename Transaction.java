@@ -44,7 +44,7 @@ public class Transaction{
       writes = new HashMap<Integer, ByteBuffer>(); 
       mutex = new SimpleLock();
       the_stat = Status.INPROGRESS;
-      ADisk.atranslist.put(this);
+      //ADisk.atranslist.put(this);
     }
     
     private Transaction(int tid) {
@@ -122,10 +122,8 @@ public class Transaction{
             }
             
             //Remove from active transaction list
-            ADisk.atranslist.remove(Tid);
+            //ADisk.atranslist.remove(Tid);
             	
-            
-            
             the_stat = Status.COMMITTED;
        }
        finally {
@@ -178,6 +176,7 @@ public class Transaction{
 	      	  headlen = headlen / Disk.SECTOR_SIZE + 1;
 	      else 
 	      	  headlen = headlen / Disk.SECTOR_SIZE;
+	      headlen = headlen * Disk.SECTOR_SIZE; 
 	      //Insert transaction information to header
 	      header = ByteBuffer.wrap(new byte[headlen]);
 	      header.putInt(Transaction.HDR_Tag);	//insert the header tag
@@ -240,7 +239,6 @@ public class Transaction{
     	if(the_stat != Status.COMMITTED) {
             throw new IllegalArgumentException("At this stage transaction yet to be committed");
     	}
-    	
     	return num_Sec_size;
     }
 
