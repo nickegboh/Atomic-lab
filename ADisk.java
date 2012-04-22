@@ -15,7 +15,7 @@ import java.util.HashMap;
 import java.util.concurrent.locks.Condition;
 import java.io.FileNotFoundException;;
 
-public class ADisk{
+public class ADisk implements DiskCallback{
 
   //-------------------------------------------------------
   // The size of the redo log in sectors
@@ -30,6 +30,8 @@ public class ADisk{
   Condition queueSubstance;
   
   public static Disk d;
+  public static ActiveTransactionList atranslist = new ActiveTransactionList();
+  public static WriteBackList wblist = new WriteBackList(); 
   public float failprob = 0.0f;
   
   //-------------------------------------------------------
@@ -54,14 +56,14 @@ public class ADisk{
       resultAvailable = ADisk_lock.newCondition();
       
       if (format == true){
-//              // wipe disk clean
-//    	  try{
-//    		  d = new Disk();
-//    	  } 
-//    	  catch(FileNotFoundException fnf){
-//              	System.out.println("Unable to open disk file");
-//              	System.exit(-1);
-//    	  }
+    	    d = null;
+    	    try{
+    	      d = new Disk(this);
+    	    }
+    	    catch(FileNotFoundException fnf){
+    	      System.out.println("Unable to open disk file");
+    	      System.exit(-1);
+    	    }
       } 
       else {
               // boot disk as normal, recovering if log is nonempty
@@ -253,6 +255,12 @@ public class ADisk{
   {
           this.failprob = failprob;
   }
+
+@Override
+public void requestDone(DiskResult result) {
+	//no idea what this should do
+	return;
+}
 
   
 }

@@ -20,7 +20,7 @@ import java.util.Arrays;
 public class LogStatus{
 
     //LOG LOCK
-    private static SimpleLock logLock;
+    private static SimpleLock logLock = new SimpleLock();
     
     //start of the redo log (log at end of disk) 
 	final static int redo_log_start = Disk.NUM_OF_SECTORS - ADisk.REDO_LOG_SECTORS - 1;
@@ -81,10 +81,10 @@ public class LogStatus{
 			return false;
 		
 		int sectorStart = 0; 
-		int sectorTail = Disk.SECTOR_SIZE - 1; 
+		int sectorTail = Disk.SECTOR_SIZE; 
 		
 		for(int i = 0; i < sectors; i++){
-			byte [] thisSector = Arrays.copyOfRange(transaction, sectorStart, sectorTail);	
+			byte [] thisSector = Arrays.copyOfRange(transaction, sectorStart, sectorTail);
 			ADisk.d.startRequest(Disk.WRITE, tid.getTidfromTransID(), transaction_head, thisSector);
 			sectorStart += Disk.SECTOR_SIZE;
 			sectorTail += Disk.SECTOR_SIZE; 
@@ -152,7 +152,7 @@ public class LogStatus{
         b.putInt(4, log_tail);
         byte[] headerBlock = b.array();
         
-        ADisk.d.startRequest(Disk.WRITE, -1, head_location, headerBlock);
+        ADisk.d.startRequest(Disk.WRITE, Disk.NUM_OF_SECTORS, head_location, headerBlock);
         
         return; 
     }
@@ -160,7 +160,7 @@ public class LogStatus{
     //Set the head tail variables from the variables on disk 
     private void getHeadTail() throws IllegalArgumentException, IOException {
     	byte[] headerBlock = new byte[Disk.SECTOR_SIZE];
-    	ADisk.d.startRequest(Disk.READ, -1, head_location, headerBlock);
+    	ADisk.d.startRequest(Disk.READ, Disk.NUM_OF_SECTORS, head_location, headerBlock);
     	ByteBuffer b = ByteBuffer.allocate(Disk.SECTOR_SIZE);
     	b.put(headerBlock);
     	log_head = b.getInt(0); 
@@ -175,7 +175,7 @@ public class LogStatus{
 		    try{
 	           logLock.lock();
 				byte[] headerBlock = new byte[Disk.SECTOR_SIZE];
-				ADisk.d.startRequest(Disk.READ, -1, head_location, headerBlock);
+				ADisk.d.startRequest(Disk.READ, Disk.NUM_OF_SECTORS, head_location, headerBlock);
 				ByteBuffer b = ByteBuffer.allocate(Disk.SECTOR_SIZE);
 				b.put(headerBlock);   
 				temp =  b.getInt(0);
@@ -198,7 +198,7 @@ public class LogStatus{
 		    try{
 	           logLock.lock();
 				byte[] headerBlock = new byte[Disk.SECTOR_SIZE];
-				ADisk.d.startRequest(Disk.READ, -1, head_location, headerBlock);
+				ADisk.d.startRequest(Disk.READ, Disk.NUM_OF_SECTORS, head_location, headerBlock);
 				ByteBuffer b = ByteBuffer.allocate(Disk.SECTOR_SIZE);
 				b.put(headerBlock);   
 				temp =  b.getInt(4);
