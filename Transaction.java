@@ -17,9 +17,9 @@ import java.util.concurrent.locks.Condition;
 
 public class Transaction{
 	///////////////////////////////////////////////////////////////////
-	private long Tid;
+	private int Tid;
     private Map<Integer, ByteBuffer> writes; // sector # to byteBuffer
-    private SimpleLock mutex;
+    private SimpleLock TransactionLock;
     private Status stat;
 
     private int logStart;
@@ -37,7 +37,7 @@ public class Transaction{
 
     public final static int HDR_Tag = 5555555;
     public final static int FTR_Tag = 9185444;
-    public long getTid() { return Tid; }
+    public int getTid() { return Tid; }
     public ByteBuffer getHeader() { return header; }
     public ByteBuffer getBody() { return body; }
     public ByteBuffer getFooter() { return footer; }
@@ -49,14 +49,14 @@ public class Transaction{
     public Transaction() {
       Tid = new TransID().getTidfromTransID();
       writes = new HashMap<Integer, ByteBuffer>(); 
-      mutex = new SimpleLock();
+      TransactionLock = new SimpleLock();
       stat = Status.INPROGRESS;
     }
     
     private Transaction(long tid) {
       Tid = tid;
       writes = new HashMap<Integer, ByteBuffer>(); 
-      mutex = new SimpleLock();
+      TransactionLock = new SimpleLock();
       stat = Status.INPROGRESS;
     }
     // 
@@ -66,7 +66,7 @@ public class Transaction{
     public void addWrite(int sectorNum, byte buffer[])
     throws IllegalArgumentException, IndexOutOfBoundsException{
     	try {
-            mutex.lock();
+            TransactionLock.lock();
             if(stat != Status.INPROGRESS) {
               throw new IllegalArgumentException("transaction " + Tid + " is not in progress");
             }
@@ -76,7 +76,7 @@ public class Transaction{
             writes.put(sectorNum, ByteBuffer.wrap(buffer));
           } 
           finally {
-            mutex.unlock();
+            TransactionLock.unlock();
           }
 
     }
@@ -92,7 +92,7 @@ public class Transaction{
     {
     	boolean read_yet = false;
         try {
-          mutex.lock();
+          TransactionLock.lock();
           if(stat != Status.INPROGRESS) {					//If not in progress, throw out with exception 
             throw new IllegalArgumentException("transaction " + Tid + " not in progress");
           }
@@ -107,7 +107,7 @@ public class Transaction{
           }
         }
         finally {
-          mutex.unlock();
+          TransactionLock.unlock();
         }
         return read_yet;
     }
@@ -115,7 +115,7 @@ public class Transaction{
 
     public void commit() throws IOException, IllegalArgumentException{
     	try {
-            mutex.lock();
+            TransactionLock.lock();
 
             if(stat != Status.INPROGRESS) {					//If not in progress, throw out with exception
               throw new IllegalArgumentException("transaction " + Tid + " not in progress");
@@ -155,7 +155,7 @@ public class Transaction{
           }
           finally {
             stat = Status.COMMITTED;
-            mutex.unlock();
+            TransactionLock.unlock();
           }
     }
 
@@ -163,14 +163,14 @@ public class Transaction{
     throws IOException, IllegalArgumentException
     {
     	try {
-            mutex.lock();
+            TransactionLock.lock();
             if(stat == Status.COMMITTED) {
               throw new IllegalArgumentException("transaction " + Tid + " already Done");
             }
           }
           finally {
             stat = Status.ABORTED;
-            mutex.unlock();
+            TransactionLock.unlock();
           }
     }
     
@@ -195,7 +195,7 @@ public class Transaction{
     public byte[] getSectorsForLog(){
     	byte[] bufToRet = null;
         try {
-          mutex.lock();
+          TransactionLock.lock();
           if(stat == Status.COMMITTED) {
             bufToRet = new byte[header.array().length + body.array().length + footer.array().length];
             System.arraycopy(header.array(), 0, bufToRet, 0, header.array().length);
@@ -204,7 +204,7 @@ public class Transaction{
           }
         }
         finally {
-          mutex.unlock();
+          TransactionLock.unlock();
           return bufToRet;
         }
     }
