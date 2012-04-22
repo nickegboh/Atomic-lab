@@ -21,19 +21,22 @@ public class LogStatus{
 
     //LOG LOCK
     private static SimpleLock logLock;
-	
+    
+    //start of the redo log (log at end of disk) 
+	final static int redo_log_start = Disk.NUM_OF_SECTORS - ADisk.REDO_LOG_SECTORS - 1;
+    
     //head - tail
-    int log_head = 1; 
-    int log_tail = 1; 
+    int log_head = redo_log_start; 
+    int log_tail = redo_log_start; 
     
     //numbrt of available sectors in the log
-    int available_sectors = ADisk.REDO_LOG_SECTORS - 1; 
+    int available_sectors = ADisk.REDO_LOG_SECTORS; 
     
     //static length of redo log
-    static int redo_log_size = ADisk.REDO_LOG_SECTORS - 1; 
+    static int redo_log_size = ADisk.REDO_LOG_SECTORS; 
     
     //head - tail locations in log
-    static int head_location = ADisk.REDO_LOG_SECTORS - 1;
+    static int head_location = Disk.NUM_OF_SECTORS - 1;
     	
     //
     // The write back for the specified range of
@@ -46,7 +49,7 @@ public class LogStatus{
 		logLock.lock();
 		assert(log_head == startSector); 
 		log_head += nSectors;
-		log_head = log_head % redo_log_size;
+		log_head = ((log_head - redo_log_start) % redo_log_size) + redo_log_start;
 		available_sectors += nSectors;
 		
 		//update head on disk 
@@ -61,10 +64,10 @@ public class LogStatus{
     //
     //Write a transaction to the log.  Receives transaction in the form of an array of bytes.  
     //Returns true for success and false for fail.  
-    public boolean logWrite(byte[] transaction, TransID tid){
+    public boolean logWrite(byte[] transaction, TransID tid) throws IllegalArgumentException, IOException{
         try{
 		logLock.lock();
-		int sectors = transaction.length / 512;
+		int sectors = transaction.length / Disk.SECTOR_SIZE;
 		
 		//assert bytes are even sector length
 		assert((sectors % Disk.SECTOR_SIZE) == 0); 
@@ -86,14 +89,14 @@ public class LogStatus{
 			sectorStart += Disk.SECTOR_SIZE;
 			sectorTail += Disk.SECTOR_SIZE; 
 			transaction_head++; 
-			transaction_head = transaction_head % redo_log_size; 
+			transaction_head = ((transaction_head - redo_log_start) % redo_log_size) + redo_log_start; 
 		}
 		
 	}
 	finally { 
 		logLock.unlock();
-		return true; 
 	}	    
+	return true; 
     }
 
     //
@@ -106,14 +109,14 @@ public class LogStatus{
     {
     	    try{
                     logLock.lock();
-		    // get head and tail info from disk
-		    getHeadTail();
-		    
-		    // calculate the available sectors
-		    if(log_head <= log_tail) 
-			    available_sectors =  redo_log_size - (log_tail - log_head);
-		    else
-			    available_sectors = redo_log_size - (redo_log_size - 1 - log_head) - log_tail;
+				    // get head and tail info from disk
+				    getHeadTail();
+				    
+				    // calculate the available sectors
+				    if(log_head <= log_tail) 
+					    available_sectors =  redo_log_size - (log_tail - log_head);
+				    else
+					    available_sectors = redo_log_size - (redo_log_size - (log_head - redo_log_start) - (log_tail - redo_log_start));
 	    }
 	    finally { 
 	    	    logLock.unlock();
@@ -130,7 +133,7 @@ public class LogStatus{
     	if(available_sectors >= nSectors){
     		int temp = log_tail; 
     		log_tail += nSectors;
-    		log_tail = log_tail % redo_log_size;
+    		log_tail = ((log_tail + redo_log_size) % redo_log_size) + redo_log_size;
     		available_sectors -= nSectors; 
     		
     		//update tail on disk 
