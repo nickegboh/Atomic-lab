@@ -351,7 +351,39 @@ public class ADiskUnit {
 			  	System.out.println("Test Parse Log: parse header returned wrong size");
 			  	pass = false; 
 		  }
-		
+		  
+		  Transaction fromLog = Transaction.parseLogBytes(logsectors);
+		  
+		  //compare number of updated sectors
+		  if(temp.getNUpdatedSectors() != fromLog.getNUpdatedSectors()){
+			  	System.out.println("Test Parse Log: Different Number Updated Sectors");
+			  	pass = false;
+		  }
+		  //compate updates
+		  else {
+			  byte[] fromlogsector = new byte[Disk.SECTOR_SIZE];
+			  byte[] tempsector = new byte[Disk.SECTOR_SIZE];
+			  for(int i = 0; i < fromLog.getNUpdatedSectors(); i++){
+				  int fromlogsecnum = fromLog.getUpdateI(i, fromlogsector);
+				  int tempsecnum = temp.getUpdateI(i, tempsector);
+				  if(fromlogsecnum != tempsecnum){
+					  System.out.println("Test Parse Log: Sector Number Mismatch");
+					  pass = false; 
+				  }
+				  if(!SectorCheck(fromlogsector, tempsector)){
+					  System.out.println("Test Parse Log: Sector Data Mismatch");
+					  pass = false;   
+					  break;
+				  }
+			  }
+		  }
+		  
+		  //compare logs
+		  if(!LogCompare(fromLog.getSectorsForLogDebug(), logsectors)){
+			  	System.out.println("Test Parse Log: Log Mismatch");
+			  	pass = false; 
+		  }
+			 
 		  if(pass)
 			  System.out.println("Test Parse Log: Passed!");
 		  else
@@ -367,7 +399,22 @@ public class ADiskUnit {
 		  }
 		  for(int i = 0; i < Disk.SECTOR_SIZE; i++){
 			  if(dat1[i] != dat2[i]){
+				  //System.out.println((char)dat1[i] + " - " + (char)dat2[i]);
 				  System.out.println("Sector Check: Data Mismatch");
+				  return false;
+			  }
+		  }
+		  return true; 
+	}
+	  
+	private static boolean LogCompare(byte[] dat1, byte[] dat2){
+		  if(dat1.length != dat2.length){
+			  System.out.println("Log Compare: Logs different sizes");
+			  return false; 
+		  }
+		  for(int i = 0; i < dat1.length; i++){
+			  if(dat1[i] != dat2[i]){
+				  System.out.println("Log Compare: Data Mismatch");
 				  return false;
 			  }
 		  }

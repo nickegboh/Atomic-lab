@@ -59,7 +59,7 @@ public class Transaction{
       Tid = new TransID(tid);
       writes = new HashMap<Integer, ByteBuffer>(); 
       mutex = new SimpleLock();
-      the_stat = Status.COMMITTED;
+      the_stat = Status.INPROGRESS;
     }
     // 
     // You can modify and add to the interfaces
@@ -135,6 +135,29 @@ public class Transaction{
             
             //Remove from active transaction list
             //ADisk.atranslist.remove(Tid);
+            	
+            the_stat = Status.COMMITTED;
+       }
+       finally {
+            mutex.unlock();
+       }
+    }
+    
+    private void commitRecovery() {
+    	try {
+            mutex.lock();
+            
+            //Ensure the transaction is in progress
+            if(the_stat != Status.INPROGRESS) {					//If not in progress, throw out with exception
+              throw new IllegalArgumentException("transaction " + Tid + " not in progress");
+            }
+            
+            //Get the bytes to be written to the log
+            byte[] toWrite = getSectorsForLog(); 
+            this.sectorsForLog = toWrite;
+            
+            //Create static order write array
+            this.writesCommitted = writes.entrySet().toArray();
             	
             the_stat = Status.COMMITTED;
        }
@@ -319,6 +342,8 @@ public class Transaction{
     	for(int i = 0; i < write_length; i++){
     		byte [] thisSector = Arrays.copyOfRange(buffer, sectorStart, sectorTail);
     		newTrans.addWrite(sectorNums[i], thisSector);
+    		sectorStart += Disk.SECTOR_SIZE;
+    		sectorTail += Disk.SECTOR_SIZE;
     	}
         
         // position trans_log to the footer sector
@@ -329,7 +354,8 @@ public class Transaction{
         int endTid = trans_log.getInt();
         if(endTid != tid_temp) 
           return null;
-    
+        
+        newTrans.commitRecovery();
         // newTrans is valid, return it to ADisk
         return newTrans;
     }
