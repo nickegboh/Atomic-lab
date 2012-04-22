@@ -26,11 +26,11 @@ public class LogStatus{
 	final static int redo_log_start = Disk.NUM_OF_SECTORS - ADisk.REDO_LOG_SECTORS - 1;
     
     //head - tail
-    int log_head = redo_log_start; 
-    int log_tail = redo_log_start; 
+    static int log_head = redo_log_start; 
+    static int log_tail = redo_log_start; 
     
     //numbrt of available sectors in the log
-    int available_sectors = ADisk.REDO_LOG_SECTORS; 
+    static int available_sectors = ADisk.REDO_LOG_SECTORS; 
     
     //static length of redo log
     static int redo_log_size = ADisk.REDO_LOG_SECTORS; 
@@ -64,7 +64,7 @@ public class LogStatus{
     //
     //Write a transaction to the log.  Receives transaction in the form of an array of bytes.  
     //Returns true for success and false for fail.  
-    public boolean logWrite(byte[] transaction, TransID tid) throws IllegalArgumentException, IOException{
+    public static boolean logWrite(byte[] transaction, TransID tid) throws IllegalArgumentException, IOException{
         try{
 		logLock.lock();
 		int sectors = transaction.length / Disk.SECTOR_SIZE;
@@ -128,7 +128,7 @@ public class LogStatus{
     // Return the index of the log sector where
     // the next transaction should go.
     // Return -1 if not enough space in the redo log for number of Sectors      
-    private int reserveLogSectors(int nSectors) throws IllegalArgumentException, IOException
+    private static int reserveLogSectors(int nSectors) throws IllegalArgumentException, IOException
     {
     	if(available_sectors >= nSectors){
     		int temp = log_tail; 
@@ -146,7 +146,7 @@ public class LogStatus{
     }
     
     // Update the head / tail on disk from the head tail variables.  
-    private void updateHeadTail() throws IllegalArgumentException, IOException{
+    private static void updateHeadTail() throws IllegalArgumentException, IOException{
     	ByteBuffer b = ByteBuffer.allocate(Disk.SECTOR_SIZE);
         b.putInt(0, log_head); 
         b.putInt(4, log_tail);

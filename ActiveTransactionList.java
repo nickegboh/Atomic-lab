@@ -9,7 +9,7 @@
  * (C) 2011 Mike Dahlin
  *
  */
-//import java.nio.ByteBuffer;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 public class ActiveTransactionList{
 
@@ -20,6 +20,7 @@ public class ActiveTransactionList{
     private SimpleLock activeTransactionsMutex;
     Transaction temp = new Transaction();    
     public ActiveTransactionList() {
+    	//writes = new HashMap<Integer, ByteBuffer>();
     	activeTransactions = new HashMap<Long, Transaction>(); 
     	activeTransactionsMutex = new SimpleLock();
       }
@@ -28,7 +29,7 @@ public class ActiveTransactionList{
         //System.exit(-1); // TBD
     	try {
     		activeTransactionsMutex.lock();
-            Long TID = trans.getTid();
+            int TID = trans.getTid().getTidfromTransID();
             activeTransactions.put(TID, trans);
           } 
           finally {
@@ -45,8 +46,8 @@ public class ActiveTransactionList{
           } 
           finally {
         	  activeTransactionsMutex.unlock();
-        	  return temp; 
           }
+    	  return temp; 
     }
 
     public Transaction remove(TransID tid){
@@ -57,9 +58,9 @@ public class ActiveTransactionList{
             Transaction temp = (Transaction)activeTransactions.remove(tid.getTidfromTransID());
           } 
           finally {
-        	  activeTransactionsMutex.unlock();
-        	  return temp; 
+        	  activeTransactionsMutex.unlock(); 
           }
+    	  return temp; 
     }
 
 

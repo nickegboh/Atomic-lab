@@ -34,6 +34,17 @@ public class TransID{
 			 TransIDLock.unlock();
 	    }
 	 }
+	 
+	 public TransID(int tidGiven) {
+	 	 try{
+			 TransIDLock.lock();
+			 tid = tidGiven;
+			 setCounter(tidGiven+1);
+		 } 
+		 finally {
+			 TransIDLock.unlock();
+	    }
+	 }
 
 	 public int getTidfromTransID(){
 	 	 return this.tid; 
