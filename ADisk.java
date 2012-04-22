@@ -27,8 +27,10 @@ public class ADisk{
   
   SimpleLock ADisk_lock;
   Condition resultAvailable;
+  Condition queueSubstance;
   
   public static Disk d;
+  public float failprob = 0.0f;
   
   //-------------------------------------------------------
   //
@@ -44,13 +46,30 @@ public class ADisk{
   //
   //-------------------------------------------------------
   public ADisk(boolean format)// Not done yet
-  {
-	  if(format == true){
-		  
-	  }
-	  else{
-		  
-	  }
+  {  
+	  // build lock
+	  this.setFailureProb(0);
+      ADisk_lock = new SimpleLock();
+      queueSubstance = ADisk_lock.newCondition();
+      resultAvailable = ADisk_lock.newCondition();
+      
+      if (format == true){
+//              // wipe disk clean
+//    	  try{
+//    		  d = new Disk();
+//    	  } 
+//    	  catch(FileNotFoundException fnf){
+//              	System.out.println("Unable to open disk file");
+//              	System.exit(-1);
+//    	  }
+      } 
+      else {
+              // boot disk as normal, recovering if log is nonempty
+//              failureRecovery();
+      }
+      
+      // Create this as a THREAD.
+      
   }
 
   //-------------------------------------------------------
@@ -74,7 +93,7 @@ public class ADisk{
   public TransID beginTransaction()// Not done yet
   {
     Transaction collect_trans = new Transaction();
-    
+ //   transactions.put(collect_trans.getID(), collect_trans);
     return null;
   }
 
@@ -117,13 +136,7 @@ public class ADisk{
 	  }
 	  
 	  // Call commit
-//	  try{
-		  transactions.get(tid).commit();
-//	  }
-//	  catch(AttemptedWriteToDeadTransactionException e){
-//		  throw new IllegalArgumentException();
-//	  }
-//    }
+	  transactions.get(tid).commit();
   }
   
 
@@ -139,9 +152,11 @@ public class ADisk{
   // to an active transaction.
   // 
   //-------------------------------------------------------
-  public void abortTransaction(TransID tid) 
-    throws IllegalArgumentException{// Not done yet
-	  
+  public void abortTransaction(TransID tid) throws IllegalArgumentException{//done
+	// Check that this is actually an active transaction
+      if (!transactions.containsKey(tid))
+    	  throw new IllegalArgumentException();
+      transactions.remove(tid);
   }
 
 
@@ -169,8 +184,23 @@ public class ADisk{
   //-------------------------------------------------------
   public void readSector(TransID tid, int sectorNum, byte buffer[])
     throws IOException, IllegalArgumentException, 
-    IndexOutOfBoundsException{// Not done yet
-	  
+    IndexOutOfBoundsException{								// Not quite done yet
+	  try{
+		  ADisk_lock.lock();
+          
+          													// Check validity of arguments
+          if (buffer==null || !transactions.containsKey(tid) || buffer.length < Disk.SECTOR_SIZE)
+        	  throw new IllegalArgumentException();
+          
+          													// Check that this is a safe sector to access
+          if (sectorNum < Disk.NUM_OF_SECTORS-getNSectors() || sectorNum > Disk.NUM_OF_SECTORS)
+        	  throw new IndexOutOfBoundsException();
+          
+          //...................
+	  }
+	  finally{
+		  ADisk_lock.unlock();
+	  }    
   }
 
   //-------------------------------------------------------
@@ -194,8 +224,27 @@ public class ADisk{
   //-------------------------------------------------------
   public void writeSector(TransID tid, int sectorNum, byte buffer[])
     throws IllegalArgumentException, 
-    IndexOutOfBoundsException{// Not done yet
+    IndexOutOfBoundsException{								// Not quite done yet
 	  
+	  														// Check that the transaction tid exists and that buffer is a valid sector
+      if (!transactions.containsKey(tid.getTidfromTransID()) || buffer.length < Disk.SECTOR_SIZE)
+    	  throw new IllegalArgumentException();
+      
+      														// Remember to put in README that addresses from 0 to getNumAvailableSectors are out of bounds
+      if (sectorNum < Disk.NUM_OF_SECTORS-getNSectors() || sectorNum > Disk.NUM_OF_SECTORS)
+    	  throw new IndexOutOfBoundsException();
+      
+      // Write buffer i think need to fix
+      transactions.get(tid.getTidfromTransID()).addWrite(sectorNum, buffer);
   }
+  //-------------------------------------------------------
+  // Update the failure probability for testing
+  //-------------------------------------------------------
+
+  public void setFailureProb(float failprob)
+  {
+          this.failprob = failprob;
+  }
+
   
 }
