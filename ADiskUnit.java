@@ -1,5 +1,6 @@
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -38,6 +39,12 @@ public class ADiskUnit {
 	    
 	    //Test Trans ID
 		if(testTransID())
+		  passcount++;
+		else 
+		  failcount++;
+		
+	    //Test Parse Log
+		if(testParseLog())
 		  passcount++;
 		else 
 		  failcount++;
@@ -296,6 +303,63 @@ public class ADiskUnit {
 			}
 		}
 	  
+	  public static boolean testParseLog() throws IllegalArgumentException, IOException {
+		  boolean pass = true; 
+		  Transaction temp = new Transaction();
+		  int tid = temp.getTid().getTidfromTransID();
+		  
+		  //create samlple data
+		  byte[] dat1 = new byte[Disk.SECTOR_SIZE];
+		  byte[] dat2 = new byte[Disk.SECTOR_SIZE];
+		  byte[] dat3 = new byte[Disk.SECTOR_SIZE];
+		  byte[] dat4 = new byte[Disk.SECTOR_SIZE];
+		  byte[] dat5 = new byte[Disk.SECTOR_SIZE];
+		  byte[] datret = new byte[Disk.SECTOR_SIZE];
+		  for(int i = 0; i < dat1.length; i++)
+			  dat1[i] = 'a';
+		  for(int i = 0; i < dat2.length; i++)
+			  dat2[i] = 'b';
+		  for(int i = 0; i < dat3.length; i++)
+			  dat3[i] = 'c';
+		  for(int i = 0; i < dat4.length; i++)
+			  dat4[i] = 'd';
+		  for(int i = 0; i < dat5.length; i++)
+			  dat5[i] = 'e';
+		  
+		  //issue writes
+		  temp.addWrite(5, dat1);
+		  temp.addWrite(7, dat2);
+		  temp.addWrite(9, dat3);
+		  temp.addWrite(11, dat4);
+		  temp.addWrite(13, dat5);
+		  temp.addWrite(15, dat5);
+		  temp.addWrite(17, dat5);
+		  temp.addWrite(11, dat4);
+		  temp.addWrite(11, dat4);
+		  temp.addWrite(11, dat1);
+		  temp.addWrite(7, dat5);
+		  temp.addWrite(7, dat4);
+		  temp.addWrite(15, dat4);
+		  temp.addWrite(17, dat2);
+		  
+		  //Commit and Test
+		  temp.commit();
+		  
+		  byte[] logsectors = temp.getSectorsForLogDebug();
+		  int sectorCount = temp.parseHeader(Arrays.copyOfRange(logsectors, 0, Disk.SECTOR_SIZE));
+		  if(sectorCount != (logsectors.length / Disk.SECTOR_SIZE)){
+			  	System.out.println("Test Parse Log: parse header returned wrong size");
+			  	pass = false; 
+		  }
+		
+		  if(pass)
+			  System.out.println("Test Parse Log: Passed!");
+		  else
+			  System.out.println("Test Parse Log: Failed!");
+		  return pass; 
+	  }
+
+	  
 	  private static boolean SectorCheck(byte[] dat1, byte[] dat2){
 		  if(dat1.length != Disk.SECTOR_SIZE || dat2.length != Disk.SECTOR_SIZE){
 			  System.out.println("Sector Check: Incorrect Sector Size");
@@ -309,6 +373,5 @@ public class ADiskUnit {
 		  }
 		  return true; 
 	}
-				    
-	  
+				  
 }

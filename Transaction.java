@@ -12,7 +12,6 @@
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.HashMap;
 import java.util.concurrent.locks.Condition;
 
 public class Transaction{
@@ -26,6 +25,8 @@ public class Transaction{
 
     private int logStart;
     private int logNSectors;
+    
+    private static byte[] sectorsForLog; // FOR DEBUGGING
 
     public enum Status {
       INPROGRESS,
@@ -36,6 +37,11 @@ public class Transaction{
     public final static int HDR_Tag = 5555555;
     public final static int FTR_Tag = 9185444;
     public TransID getTid() { return Tid; }
+    public byte[] getSectorsForLogDebug(){
+        if(the_stat != Status.COMMITTED) {
+            throw new IllegalArgumentException("transaction " + Tid + " already committed");
+          }
+    	return sectorsForLog; } 
     //////////////////////////////////////////////////////////////////
     // 
     // You can modify and add to the interfaces
@@ -53,7 +59,7 @@ public class Transaction{
       Tid = new TransID(tid);
       writes = new HashMap<Integer, ByteBuffer>(); 
       mutex = new SimpleLock();
-      the_stat = Status.INPROGRESS;
+      the_stat = Status.COMMITTED;
     }
     // 
     // You can modify and add to the interfaces
@@ -116,6 +122,7 @@ public class Transaction{
             
             //Get the bytes to be written to the log
             byte[] toWrite = getSectorsForLog(); 
+            this.sectorsForLog = toWrite;
             
             //Write bytes to the log
             if(!LogStatus.logWrite(toWrite, Tid)){
@@ -187,7 +194,7 @@ public class Transaction{
 	      header.putInt(Transaction.HDR_Tag);	//insert the header tag
 	      header.putInt(this.Tid.getTidfromTransID());				//insert the tid
 	      header.putInt(this.writes.size());		//insert number of write sectors
-	      header.putInt(headlen);				//insert number of header sectors
+	      header.putInt(headlen / Disk.SECTOR_SIZE);				//insert number of header sectors
 	      //Calculate body length
 	      int bodylen   = Disk.SECTOR_SIZE * this.writes.size();
 	      //Create body byte buffer
@@ -270,20 +277,15 @@ public class Transaction{
     // header and commit) to get the full transaction.
     //
     public static int parseHeader(byte buffer[]){
-    	/*ByteBuffer by_buff = ByteBuffer.wrap(buffer);
-
-        													// first 4 bytes is the Header Tag
-        int tag = by_buff.getInt();
-        assert tag == Transaction.HDR_Tag;
-
-        // next 8 bytes = Tid
-        //long tid = by_buff.getLong();
-
-        // next 4 bytes = num of sectors
-        int numUpdates = by_buff.getInt();
-
-        int headerLen = getHDRLenInSecs(numUpdates);*/
-        return -1;
+    	assert(buffer.length == Disk.SECTOR_SIZE);
+    	ByteBuffer temp = ByteBuffer.wrap(buffer);
+    	int headerTag = temp.getInt();
+    	if(headerTag != Transaction.HDR_Tag)
+    		return -1;
+    	int tid_temp = temp.getInt();
+    	int write_length = temp.getInt();
+    	int header_length = temp.getInt(); 
+    	return (write_length + header_length + 1);
     }
 
     //
@@ -292,36 +294,44 @@ public class Transaction{
     // committed transaction and return it. Otherwise
     // throw an exception or return null.
     public static Transaction parseLogBytes(byte buffer[]){
-    	/*ByteBuffer by_buff = ByteBuffer.wrap(buffer);
-
-        int tid = by_buff.getInt();
-        Transaction newTrans = new Transaction(tid);
-
-        													// Populate the sector number list
-        int numUpdates = by_buff.getInt();
-        ArrayList<Integer> sectorNums = new ArrayList<Integer>();
-        for(int i = 0; i < numUpdates; ++i) {
-          sectorNums.add(by_buff.getInt());
-        }
-
-        													// Push position to first sector after the header
-        by_buff.position(getHDRLenInSecs(numUpdates) * Disk.SECTOR_SIZE);
-
-        													// For each sector, write with (sectorNum[i], update)
-        for(int i = 0; i < numUpdates; ++i) {
-          byte[] update = new byte[Disk.SECTOR_SIZE];
-          by_buff.get(update);
-          newTrans.addWrite(sectorNums.get(i), update);
-        }
-
-        													// read Tid from commit
-        long endTid = by_buff.getLong();
-        if(endTid != tid) {
+    	ByteBuffer trans_log = ByteBuffer.wrap(buffer);
+    	
+    	//read header info
+    	int headerTag = trans_log.getInt();
+    	if(headerTag != Transaction.HDR_Tag)
+    		return null;
+    	int tid_temp = trans_log.getInt();
+    	int write_length = trans_log.getInt();
+    	int header_length = trans_log.getInt();
+    	
+    	//read sector number's from header
+    	int[] sectorNums = new int[write_length];
+    	for(int i = 0; i < write_length; i++){
+    		sectorNums[i] = trans_log.getInt();
+    	}
+    	
+    	//Create new transaction
+    	Transaction newTrans = new Transaction(tid_temp);
+    	
+    	//Create writes in transactoin from log
+    	int sectorStart = header_length * Disk.SECTOR_SIZE; 
+		int sectorTail = sectorStart + Disk.SECTOR_SIZE; 
+    	for(int i = 0; i < write_length; i++){
+    		byte [] thisSector = Arrays.copyOfRange(buffer, sectorStart, sectorTail);
+    		newTrans.addWrite(sectorNums[i], thisSector);
+    	}
+        
+        // position trans_log to the footer sector
+    	trans_log.position((header_length + write_length) * Disk.SECTOR_SIZE);
+    	int footerTag = trans_log.getInt();
+    	if(footerTag != Transaction.FTR_Tag)
+    		return null;
+        int endTid = trans_log.getInt();
+        if(endTid != tid_temp) 
           return null;
-        }
-        													// newTrans is valid, return it to ADisk
-        return newTrans;*/
-    	return null;
+    
+        // newTrans is valid, return it to ADisk
+        return newTrans;
     }
     
 }
