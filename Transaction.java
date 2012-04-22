@@ -19,6 +19,8 @@ public class Transaction{
 	///////////////////////////////////////////////////////////////////
 	private TransID Tid;
     private Map<Integer, ByteBuffer> writes; // sector # to byteBuffer
+    private Object[] writesCommitted;
+ 
     private SimpleLock mutex;
     private Status the_stat;
 
@@ -120,6 +122,9 @@ public class Transaction{
             	System.out.println("Redo Log Full!");
             	System.exit(-1);
             }
+            
+            //Create static order write array
+            this.writesCommitted = writes.entrySet().toArray();
             
             //Remove from active transaction list
             //ADisk.atranslist.remove(Tid);
@@ -235,11 +240,10 @@ public class Transaction{
     // transaction updates. Used for writeback.
     //
     public int getNUpdatedSectors(){						// Not quite done yet***//throws IllegalArgumentException 
-    	int num_Sec_size = writes.size();
     	if(the_stat != Status.COMMITTED) {
             throw new IllegalArgumentException("At this stage transaction yet to be committed");
     	}
-    	return num_Sec_size;
+    	return writesCommitted.length;
     }
 
     //
@@ -249,13 +253,12 @@ public class Transaction{
     // a secNum and put the body of the
     // write in byte array. Used for writeback.
     //
-    public int getUpdateI(int i, byte buffer[]){			// Not quite done yet***
-    	int temp_hold = 0;
-    	if(the_stat != Status.COMMITTED) {
-            throw new IllegalArgumentException("At this stage transaction yet to be committed");
-          }
-    	temp_hold = buffer[i];
-        return temp_hold;
+    public int getUpdateI(int i, byte buffer[]){
+    	Map.Entry<Integer,ByteBuffer> temp_write = (Map.Entry<Integer,ByteBuffer>)this.writesCommitted[i];
+    	byte[] temp = temp_write.getValue().array();
+    	for(int j = 0; j < Disk.SECTOR_SIZE; j++)
+    		buffer[j] = temp[j];
+    	return temp_write.getKey();
     }
 
     
