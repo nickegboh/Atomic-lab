@@ -92,9 +92,10 @@ public class ADisk{
   //-------------------------------------------------------
   public TransID beginTransaction()// Not done yet
   {
-    Transaction collect_trans = new Transaction();
- //   transactions.put(collect_trans.getID(), collect_trans);
-    return null;
+	  //TransID tid = new TransID();
+	  Transaction collect_trans = new Transaction();
+	  transactions.put(collect_trans.getTid(), collect_trans);
+	  return collect_trans.getTid();
   }
 
   //-------------------------------------------------------
@@ -227,15 +228,22 @@ public class ADisk{
     IndexOutOfBoundsException{								// Not quite done yet
 	  
 	  														// Check that the transaction tid exists and that buffer is a valid sector
-      if (!transactions.containsKey(tid.getTidfromTransID()) || buffer.length < Disk.SECTOR_SIZE)
+//      if (!transactions.containsKey(tid) || buffer.length < Disk.SECTOR_SIZE)
+//    	  throw new IllegalArgumentException();
+//      
+//      														// Remember to put in README that addresses from 0 to getNumAvailableSectors are out of bounds
+//      if (sectorNum < Disk.NUM_OF_SECTORS-getNSectors() || sectorNum > Disk.NUM_OF_SECTORS)
+//    	  throw new IndexOutOfBoundsException();
+      
+	  if (sectorNum<1024 || sectorNum > getNSectors() +1024)
     	  throw new IllegalArgumentException();
       
       														// Remember to put in README that addresses from 0 to getNumAvailableSectors are out of bounds
-      if (sectorNum < Disk.NUM_OF_SECTORS-getNSectors() || sectorNum > Disk.NUM_OF_SECTORS)
+      if (!transactions.containsKey(tid))
     	  throw new IndexOutOfBoundsException();
-      
+	  
       // Write buffer i think need to fix
-      transactions.get(tid.getTidfromTransID()).addWrite(sectorNum, buffer);
+      transactions.get(tid).addWrite(sectorNum, buffer);
   }
   //-------------------------------------------------------
   // Update the failure probability for testing
