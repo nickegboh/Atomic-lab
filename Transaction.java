@@ -44,6 +44,7 @@ public class Transaction{
       writes = new HashMap<Integer, ByteBuffer>(); 
       mutex = new SimpleLock();
       the_stat = Status.INPROGRESS;
+      ADisk.atranslist.put(this);
     }
     
     private Transaction(int tid) {
@@ -71,7 +72,6 @@ public class Transaction{
           finally {
             mutex.unlock();
           }
-
     }
 
     //
@@ -121,7 +121,8 @@ public class Transaction{
             	System.exit(-1);
             }
             
-            
+            //Remove from active transaction list
+            ADisk.atranslist.remove(Tid);
             	
             
             
