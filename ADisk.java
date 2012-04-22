@@ -133,13 +133,22 @@ public class ADisk implements DiskCallback{
   //-------------------------------------------------------
   public void commitTransaction(TransID tid) 
     throws IOException, IllegalArgumentException{// Not yet complete
-	  // Is transaction active
-	  if(!transactions.containsKey(tid)){
-		  throw new IllegalArgumentException("No transaction with tid: " + tid);
-	  }
+	  try {
+		  ADisk_lock.lock();
+		  // Is transaction active
+		  if(!transactions.containsKey(tid)){
+			  throw new IllegalArgumentException("No transaction with tid: " + tid);
+		  }
 	  
-	  // Call commit
-	  transactions.get(tid).commit();
+		  // Call commit
+		  transactions.get(tid).commit();
+	  }
+	  catch(IOException e) {
+		  System.out.println("Test commitTrans Fails");
+	  }
+	  finally{
+		  ADisk_lock.unlock();
+	  }
   }
   
 
@@ -193,13 +202,13 @@ public class ADisk implements DiskCallback{
           
           													// Check validity of arguments
           if (buffer==null || !transactions.containsKey(tid) || buffer.length < Disk.SECTOR_SIZE)
-        	  throw new IllegalArgumentException();
-          
+        	  throw new IllegalArgumentException();       
           													// Check that this is a safe sector to access
           if (sectorNum < Disk.NUM_OF_SECTORS-getNSectors() || sectorNum > Disk.NUM_OF_SECTORS)
         	  throw new IndexOutOfBoundsException();
           
           //...................
+          
 	  }
 	  finally{
 		  ADisk_lock.unlock();
@@ -234,11 +243,11 @@ public class ADisk implements DiskCallback{
 //    	  throw new IllegalArgumentException();
 //      
 //      														// Remember to put in README that addresses from 0 to getNumAvailableSectors are out of bounds
-//      if (sectorNum < Disk.NUM_OF_SECTORS-getNSectors() || sectorNum > Disk.NUM_OF_SECTORS)
-//    	  throw new IndexOutOfBoundsException();
+      if (sectorNum < Disk.NUM_OF_SECTORS-getNSectors() || sectorNum > Disk.NUM_OF_SECTORS)
+    	  throw new IndexOutOfBoundsException();
       
-	  if (sectorNum<1024 || sectorNum > getNSectors() +1024)
-    	  throw new IllegalArgumentException();
+//	  if (sectorNum<Disk.NUM_OF_SECTORS || sectorNum > getNSectors() +Disk.NUM_OF_SECTORS)
+//    	  throw new IllegalArgumentException();
       
       														// Remember to put in README that addresses from 0 to getNumAvailableSectors are out of bounds
       if (!transactions.containsKey(tid))
@@ -256,11 +265,11 @@ public class ADisk implements DiskCallback{
           this.failprob = failprob;
   }
 
-@Override
-public void requestDone(DiskResult result) {
-	//no idea what this should do
-	return;
-}
+  @Override
+  public void requestDone(DiskResult result) {
+  	//no idea what this should do
+  	return;
+  }
 
-  
+    
 }

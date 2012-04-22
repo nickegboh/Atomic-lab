@@ -13,209 +13,67 @@ import java.nio.ByteBuffer;
 
 //Do not use till we have something solid
 public class ADiskTester {
-  public static void main(String args[])
+  public static void main(String args[]) throws IllegalArgumentException, IOException
   {
-	
-	  testSingleWriteAndRead();
-      testInitialRead();
-      testTransID();
+	  ADisk disk = new ADisk(true);
+	  int passcount = 0; 
+	  int failcount = 0; 
+		
+	  //Test One Write, One Transaction
+	  if(testonewriteTrans())
+		  passcount++;
+	  else 
+		  failcount++;
+		
+	  //Test Multi Write, One Transaction
+	  if(testmultiwriteTrans())
+		  passcount++;
+	  else 
+		  failcount++;
+		
+//	  testAbortTransaction();
+//	  testComit1();
+	  if(testInitialRead())
+		  passcount++;
+	  else 
+		  failcount++;
+	  if(testTransID())
+		  passcount++;
+	  else 
+		  failcount++;
+      
+      System.out.println("\nPassed: " + passcount + " Failed: " + failcount);
       System.exit(0);
 
-	  
-	  
-//    System.out.println("Start to Test TRANSACTION");
-//    Transaction[] trans = new Transaction[500];// 500 should be sufficient
-//    for(int i = 0; i < 500; ++i) {
-//      trans[i] = new Transaction();
-//    }
-//
-//    byte[] bufA = new byte[512];
-//    byte[] bufB = new byte[512];
-//    byte[] bufC = new byte[512];
-//    for(int i = 0; i < 512; i++) {
-//      bufA[i] = (byte)'A';
-//      bufB[i] = (byte)'B';
-//      bufC[i] = (byte)'C';
-//    }
-//    
-//    /* We are adding 1000 buffers to each transaction
-//     	If tid % 3 = 0, then put bufA
-//     	If tid % 3 = 1, then put bufB
-//     	If tid % 3 = 2, then put bufC	*/
-//    int secNumCounter = 0;
-//    for(int j = 0; j < 1000; j++) {
-//      for(int i = 0; i < 500; i++) {
-//        if(i % 3 == 0) {
-//          try {
-//            trans[i].addWrite(secNumCounter++, bufA);
-//          }
-//          catch(IndexOutOfBoundsException e) {
-//            assert secNumCounter > ADisk.getNSectors() : "Sector " + secNumCounter;
-//          }
-//        }
-//        else if(i % 3 == 1) {
-//          try {
-//            trans[i].addWrite(secNumCounter++, bufB);
-//          }
-//          catch(IndexOutOfBoundsException e) {
-//            assert secNumCounter > ADisk.getNSectors() : "Sector " + secNumCounter;
-//          }
-//        }
-//        else if(i % 3 == 2) {
-//          try {
-//            trans[i].addWrite(secNumCounter++, bufC);
-//          }
-//          catch(IndexOutOfBoundsException e) {
-//            assert secNumCounter > ADisk.getNSectors() : "Sector " + secNumCounter;
-//          }
-//        }
-//      }
-//    }
-////////////////////////////////////////////////////////////////////////////////////
-//
-//    for(int i = 250; i < 500; ++i) {
-//        try {
-//			trans[i].abort();
-//		} catch (IllegalArgumentException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		} catch (IOException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
-//      }
-//
-//    try {
-//        for(int i = 250; i < 500; i++) {
-//          try {
-//            trans[i].addWrite(0, bufA);
-//            System.out.println("FAILED trans..addWrite expecting " +
-//                               "IllegalArgumentException caused by writing " +
-//                               "aborted transaction");
-//            System.exit(1);
-//          }
-//          catch(IllegalArgumentException e) {}//Nothing to be done Expecting exception
-//          try {
-//            trans[i].checkRead(0, bufA);
-//            System.out.println("FAILED trans..checkRead expecting " +
-//                               "IllegalArgumentException caused by reading " +
-//                               "aborted transaction");
-//            System.exit(1);
-//          }
-//          catch(IllegalArgumentException e) {}//Nothing to be done Expecting exception
-//        }
-//      }
-//      catch(IllegalArgumentException e) {
-//        System.out.println(e);
-//        System.exit(1);
-//      }
-//
-////////////////////////////////////////////////////////////////////////////////////////
-//    for(int i = 0; i < 500; i++) {
-//      try {
-//        trans[i].commit();
-//      }
-//      catch(IllegalArgumentException e) {
-//        if(i < 250) {
-//          System.out.println("FAILED cannot commit so aborted transaction");
-//          System.exit(1);
-//        }
-//      }
-//      catch(IOException e) {
-//        System.out.println("FAILED commit so threw IOException " + e);
-//        System.exit(1);
-//      }
-//    }
-//    
-//
-//    System.out.println("Get NSector updates from each transaction");
-//    for(int i = 0; i < 500; ++i) {
-//      try {
-//        System.out.print(i + ":" + trans[i].getNUpdatedSectors() + " ");
-//        if(i % 10 == 0) {
-//          System.out.println();
-//        }
-//      }
-//      catch(IllegalArgumentException e) {
-//        if(i < 250) {
-//          System.out.println("FAILED getNUpdatedSectors so threw IOException " + e);
-//          System.exit(1);
-//        }
-//      }
-//    }
-//    System.out.println();
-//
-//    try {
-//      ByteBuffer header = trans[5].getHeader();
-//      ByteBuffer body   = trans[5].getBody();
-//      ByteBuffer footer = trans[5].getFooter();
-//
-//      long transId = header.getLong();
-//      int numSec   = header.getInt();
-//      System.out.println("trans Id: " + transId);
-//      System.out.println("num sectors: " + numSec);
-//      System.out.println("Sector IDs: ");
-//      for(int i = 0; i < numSec; i++) {
-//        System.out.print(header.getInt() + " ");
-//        if(i % 40 == 39) {
-//          System.out.println();
-//        }
-//      }
-//      System.out.println();
-//      
-//      System.out.println("sectors: ");
-//      for(int i = 0; i < (512 * numSec); i++) {
-//        if(i % 512 == 0) {
-//          System.out.println("sector " + (i / 512));
-//        }
-//        System.out.print(body.getChar() + " ");
-//        if(i % 40 == 39) {
-//          System.out.println();
-//        }
-//      }
-//      System.out.println();
-//      System.out.println("footer: " + footer.getLong());
-//
-//
-//    } catch(java.nio.BufferUnderflowException e) {
-//      System.out.println(e);
-//      System.exit(1);
-//    }
-//    System.out.println("Transactions Done");
+
   }
   
-  public static void testSingleWriteAndRead(){            //Java presets the Hard Drive to 0's 
-      try{
-              ADisk tester = new ADisk(true);
-              tester.setFailureProb(0.0f);
-              TransID t1 =  tester.beginTransaction();
-              
-              byte [] sampleSector = new byte[Disk.SECTOR_SIZE];
-                for(int i = 0; i < sampleSector.length; i++)
-                        sampleSector[i] = -10;			//ADisk.EMPTY_METADATA;
-              
-          tester.writeSector(t1, ADisk.REDO_LOG_SECTORS, sampleSector);
-              byte[] result = new byte[Disk.SECTOR_SIZE];
-              tester.readSector(t1, ADisk.REDO_LOG_SECTORS, result);
-              boolean testGood = true;
-              for(int i = 0; i< Disk.SECTOR_SIZE; i++)
-              {
-                      System.out.println(result[i]+", "+sampleSector[i]);
-                      if(result[i] != sampleSector[i])
-                              testGood = false;
-              }
-              if(testGood)
-                      System.out.println("TestSingleWriteAndRead Succeeds");
-              else
-                      System.out.println("TestSingleWriteAndRead Fails");
-      }
-      catch(Exception e){
-                      System.out.println("TestSingleWriteAndRead Fails");
-      }
-}
+  //////////////////////////
+  public static void testAbortTransaction() {
+	  ADisk tester = new ADisk(true);
+	  TransID tid = tester.beginTransaction();
+	  tester.abortTransaction(tid);
 
+  }
+  //////
+  public static void testComit1() {
+	  ADisk tester = new ADisk(true);
+	  TransID tid = tester.beginTransaction();
+	  //assertTrue(tester.isActive(tid));
+	  int sectorNum = 1025; //First available sector.
+	  byte[] buffer = new byte[512];
 
-public static void testInitialRead(){           //Java presets the Hard Drive to 0's 
+	  tester.writeSector(tid, sectorNum, buffer);
+	  try {
+		  tester.abortTransaction(tid);
+		  tester.commitTransaction(tid);
+	  }
+	  catch(IOException e) {
+		  System.out.println("Test commit Fails");
+	  }
+  }
+  /////////////////////////
+  public static boolean testInitialRead(){     
       try{
               ADisk tester = new ADisk(true);
               tester.setFailureProb(0.0f);
@@ -225,30 +83,172 @@ public static void testInitialRead(){           //Java presets the Hard Drive to
               boolean testGood = true;
               for(byte x: zeros)
               {
-                      //System.out.println(x);
                       if(x != 0)
-                              testGood = false;
+                    	  testGood = false;
               }
-              if(testGood)
-                      System.out.println("TestInitialRead Succeeds");
-              else
+              if(testGood){
+                    System.out.println("TestInitialRead Succeeds");
+              		return true;
+              }
+              else{
                       System.out.println("TestInitialRead Fails");
+                      return false;
+              }
+              	
       }
       catch(Exception e){
-                      System.out.println("TestInitialRead Fails");
+    	  System.out.println("TestInitialRead Fails");
+    	  return false;
       }
-}
+  }
 
-public static void testTransID(){
-      boolean testsGood = true;
-      TransID t1 = new TransID();
-      TransID t2 = new TransID();
-      if(t1.getTidfromTransID()>=t2.getTidfromTransID())
-        testsGood = false;            
-      if(testsGood)
-              System.out.println("TestTransID Succeeds");
-      else
+	public static boolean testTransID(){
+		boolean testsGood = true;
+		TransID t1 = new TransID();
+		TransID t2 = new TransID();
+		if(t1.getTidfromTransID()>=t2.getTidfromTransID())
+			testsGood = false;            
+		if(testsGood){
+            System.out.println("TestTransID Succeeds");
+			return true;
+		}
+		else{
               System.out.println("TestTransID Fails");
-}
-
+              return false;
+		}
+	}
+	// from Adisk unit
+	public static boolean testonewriteTrans() throws IllegalArgumentException, IOException {
+		  boolean pass = false; 
+		  Transaction temp = new Transaction();
+		  int tid = temp.getTid().getTidfromTransID();
+		  byte[] dat = new byte[Disk.SECTOR_SIZE];
+		  byte[] dat2 = new byte[Disk.SECTOR_SIZE];
+		  for(int i = 0; i < dat.length; i++)
+			  dat[i] = 'a';
+		  temp.addWrite(5, dat);
+		  if(!temp.checkRead(5, dat2))
+			  System.out.println("Test One Write, One Trans: check read failed!");
+		  if(SectorCheck(dat, dat2))
+			  pass = true;
+		  temp.commit();
+		  if(temp.getNUpdatedSectors() != 1){
+			  System.out.println("Test One Write, One Trans: get n updated sectors returned wrong value");
+			  pass = false;
+		  }
+		  if(pass)
+			  System.out.println("Test One Write, One Trans: Passed!");
+		  else
+			  System.out.println("Test One Write, One Trans: Failed!");
+		  return pass; 
+	  }
+	public static boolean testmultiwriteTrans() throws IllegalArgumentException, IOException {
+		  boolean pass = true; 
+		  Transaction temp = new Transaction();
+		  int tid = temp.getTid().getTidfromTransID();
+		  
+		  //create sample data
+		  byte[] dat1 = new byte[Disk.SECTOR_SIZE];
+		  byte[] dat2 = new byte[Disk.SECTOR_SIZE];
+		  byte[] dat3 = new byte[Disk.SECTOR_SIZE];
+		  byte[] dat4 = new byte[Disk.SECTOR_SIZE];
+		  byte[] dat5 = new byte[Disk.SECTOR_SIZE];
+		  byte[] datret = new byte[Disk.SECTOR_SIZE];
+		  for(int i = 0; i < dat1.length; i++)
+			  dat1[i] = 'a';
+		  for(int i = 0; i < dat2.length; i++)
+			  dat2[i] = 'b';
+		  for(int i = 0; i < dat3.length; i++)
+			  dat3[i] = 'c';
+		  for(int i = 0; i < dat4.length; i++)
+			  dat4[i] = 'd';
+		  for(int i = 0; i < dat5.length; i++)
+			  dat5[i] = 'e';
+		  
+		  //issue writes
+		  temp.addWrite(5, dat1);
+		  temp.addWrite(7, dat2);
+		  temp.addWrite(9, dat3);
+		  temp.addWrite(11, dat4);
+		  temp.addWrite(13, dat5);
+		  temp.addWrite(15, dat5);
+		  temp.addWrite(17, dat5);
+		  temp.addWrite(11, dat4);
+		  temp.addWrite(11, dat4);
+		  temp.addWrite(11, dat1);
+		  temp.addWrite(7, dat5);
+		  temp.addWrite(7, dat4);
+		  temp.addWrite(15, dat4);
+		  temp.addWrite(17, dat2);
+		  
+		  //ensure written sectors have writes logged
+		  if(!temp.checkRead(5, datret)){
+			  System.out.println("Test Multi Write, One Trans: check read failed!");
+			  pass = false; 
+		  }
+		  if(!SectorCheck(dat1, datret))
+			  pass = false;
+		  if(!temp.checkRead(7, datret)){
+			  System.out.println("Test Multi Write, One Trans: check read failed!");
+			  pass = false; 
+		  }
+		  if(!SectorCheck(dat4, datret))
+			  pass = false;
+		  if(!temp.checkRead(9, datret)){
+			  System.out.println("Test Multi Write, One Trans: check read failed!");
+			  pass = false; 
+		  }
+		  if(!SectorCheck(dat3, datret))
+			  pass = false;
+		  if(!temp.checkRead(11, datret)){
+			  System.out.println("Test Multi Write, One Trans: check read failed!");
+			  pass = false; 
+		  }
+		  if(!SectorCheck(dat1, datret))
+			  pass = false;
+		  if(!temp.checkRead(13, datret)){
+			  System.out.println("Test Multi Write, One Trans: check read failed!");
+			  pass = false; 
+		  }
+		  if(!SectorCheck(dat5, datret))
+			  pass = false;
+		  if(!temp.checkRead(15, datret)){
+			  System.out.println("Test Multi Write, One Trans: check read failed!");
+			  pass = false; 
+		  }
+		  if(!SectorCheck(dat4, datret))
+			  pass = false;
+		  if(!temp.checkRead(17, datret)){
+			  System.out.println("Test Multi Write, One Trans: check read failed!");
+			  pass = false; 
+		  }
+		  if(!SectorCheck(dat2, datret))
+			  pass = false;
+		  
+		  //Commit and Test
+		  temp.commit();
+		  if(temp.getNUpdatedSectors() != 7){
+			  System.out.println("Test Multi Write, One Trans: get n updated sectors returned wrong value");
+			  pass = false;
+		  }
+		  if(pass)
+			  System.out.println("Test Multi Write, One Trans: Passed!");
+		  else
+			  System.out.println("Test Multi Write, One Trans: Failed!");
+		  return pass; 
+	  }
+	
+	private static boolean SectorCheck(byte[] dat1, byte[] dat2){
+		  if(dat1.length != Disk.SECTOR_SIZE || dat2.length != Disk.SECTOR_SIZE){
+			  System.out.println("Sector Check: Incorrect Sector Size");
+			  return false; 
+		  }
+		  for(int i = 0; i < Disk.SECTOR_SIZE; i++){
+			  if(dat1[i] != dat2[i]){
+				  System.out.println("Sector Check: Data Mismatch");
+				  return false;
+			  }
+		  }
+		  return true; 
+	}
 }
