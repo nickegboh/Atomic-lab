@@ -64,7 +64,7 @@ public class ADisk implements DiskCallback{
       
       //initialize lists and logs
       lstatus = new LogStatus(this);
-      wblist = new WriteBackList();
+      wblist = new WriteBackList(this);
       lstatus = new LogStatus(this);
       
       commitDone = waitLock.newCondition();
@@ -323,7 +323,6 @@ public class ADisk implements DiskCallback{
     try{
       waitLock.lock();
       while(commitBarrierSector != -1){
-    	  System.out.println("WAIT");
     	  commitDone.awaitUninterruptibly();
       }
       return;

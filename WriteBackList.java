@@ -18,14 +18,17 @@ public class WriteBackList{
 	
 	private LinkedList<Transaction> writeBackTransactions; 
 	private SimpleLock WriteBackLock;
+	private ADisk theDisk;
+	
     // 
     // You can modify and add to the interfaces
     //
 
 	//constructor
-	 public WriteBackList() {
+	 public WriteBackList(ADisk myDisk) {
 		 WriteBackLock = new SimpleLock();
 		 writeBackTransactions = new LinkedList<Transaction>();
+		 theDisk = myDisk; 
 	 }
     // Once a transaction is committed in the log,
     // move it from the ActiveTransactionList to 
