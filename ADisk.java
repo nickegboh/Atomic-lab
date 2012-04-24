@@ -26,6 +26,7 @@ public class ADisk implements DiskCallback{
   private HashMap<TransID, Transaction> transactions = new HashMap<TransID, Transaction>();
   
   SimpleLock ADisk_lock;
+  SimpleLock waitLock; 
   Condition commitDone;
   Condition writebackDone;
   
@@ -59,14 +60,15 @@ public class ADisk implements DiskCallback{
 	  // build lock
 	  this.setFailureProb(0);
       ADisk_lock = new SimpleLock();
+      waitLock = new SimpleLock();
       
       //initialize lists and logs
       lstatus = new LogStatus(this);
       wblist = new WriteBackList();
       lstatus = new LogStatus(this);
       
-      commitDone = ADisk_lock.newCondition();
-      writebackDone = ADisk_lock.newCondition();
+      commitDone = waitLock.newCondition();
+      writebackDone = waitLock.newCondition();
       commitBarrierSector = 0;
       commitBarrierTid = 0;
       writebackBarrierSector = 0;
@@ -284,28 +286,51 @@ public class ADisk implements DiskCallback{
 
   @Override
   public void requestDone(DiskResult result) {
-	  
-	  //check for real error
-	  if(result.getStatus() == DiskResult.REAL_ERROR){
-          System.out.println("UNEXPECTED ERROR: real IO error");
-          System.exit(-1);
-        }	
-	  
-	  //check if this is the commit barrier sector and signal appropriately 
-	  if(result.getTag() == commitBarrierSector && result.getSectorNum() == commitBarrierTid && result.getOperation() == Disk.WRITE){
-		  	commitBarrierSector = -1; 
-		  	commitBarrierTid = -1;
-		  	commitDone.signal();
-	  }
-	  
-	  //check if this is the write back barrier sector and signal appropriately
-	  if(result.getTag() == writebackBarrierSector && result.getSectorNum() == writebackBarrierTid && result.getOperation() == Disk.WRITE){
-		  	writebackBarrierSector = -1;
+	    try{
+	      waitLock.lock();
+		  //check for real error
+		  if(result.getStatus() == DiskResult.REAL_ERROR){
+	          System.out.println("UNEXPECTED ERROR: real IO error");
+	          System.exit(-1);
+	        }	
+		  
+		  //check if this is the commit barrier sector and signal appropriately 
+		  if(result.getSectorNum() == commitBarrierSector && result.getTag() == commitBarrierTid && result.getOperation() == Disk.WRITE){
+			  	commitBarrierSector = -1; 
+			  	commitBarrierTid = -1;
+			  	commitDone.signal();
+			  	return;
+		}
+		  
+		//check if this is the write back barrier sector and signal appropriately
+		if(result.getTag() == writebackBarrierSector && result.getSectorNum() == writebackBarrierTid && result.getOperation() == Disk.WRITE){
+		 	writebackBarrierSector = -1;
 		  	writebackBarrierTid = -1;
 		  	writebackDone.signal();
-	  }
+		  	return;
+		}
+	  
+	 }
+	 finally{
+		 waitLock.unlock();
+	 }
   	
   }
-
+  
+  //function to wait for commit to write 
+  public void commitWait()
+  {
+    try{
+      waitLock.lock();
+      while(commitBarrierSector != -1){
+    	  System.out.println("WAIT");
+    	  commitDone.awaitUninterruptibly();
+      }
+      return;
+    }
+    finally{
+      waitLock.unlock();
+    }
+  }
     
 }

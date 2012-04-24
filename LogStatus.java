@@ -94,7 +94,7 @@ public class LogStatus{
 		
 		for(int i = 0; i < sectors; i++){
 			//if this is the end of body sectors add barrier
-			if(i == sectors){
+			if(i == sectors-1){
 				theDisk.commitBarrierTid = tid.getTidfromTransID();
 				theDisk.commitBarrierSector = transaction_head; 	
 				theDisk.d.addBarrier();
@@ -108,9 +108,7 @@ public class LogStatus{
 		}
 		
 		//wait for the log to finish writing the commit sector
-	 //   while(theDisk.commitBarrierSector != -1){
-	   //       theDisk.commitDone.awaitUninterruptibly();
-	    //}		
+	    theDisk.commitWait();
 		
 	}
 	finally { 
