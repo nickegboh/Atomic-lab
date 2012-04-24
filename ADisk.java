@@ -22,9 +22,6 @@ public class ADisk implements DiskCallback{
   //-------------------------------------------------------
   public static final int REDO_LOG_SECTORS = 1024;
 
-  //This map is to hold all the trans ID's
-  private HashMap<TransID, Transaction> transactions = new HashMap<TransID, Transaction>();
-  
   SimpleLock ADisk_lock;
   SimpleLock waitLock; 
   Condition commitDone;
@@ -89,8 +86,6 @@ public class ADisk implements DiskCallback{
 //              failureRecovery();
       }
       
-      // Create this as a THREAD.
-      
   }
 
   //-------------------------------------------------------
@@ -115,7 +110,7 @@ public class ADisk implements DiskCallback{
   {
 	  //TransID tid = new TransID();
 	  Transaction collect_trans = new Transaction(this);
-	  transactions.put(collect_trans.getTid(), collect_trans);
+	  atranslist.put(collect_trans);
 	  return collect_trans.getTid();
   }
 
@@ -154,16 +149,10 @@ public class ADisk implements DiskCallback{
     throws IOException, IllegalArgumentException{// Not yet complete
 	  try {
 		  ADisk_lock.lock();
-		  // Is transaction active
-		  if(!transactions.containsKey(tid)){
-			  throw new IllegalArgumentException("No transaction with tid: " + tid);
-		  }
-	  
 		  // Call commit
-		  transactions.get(tid).commit();
-	  }
-	  catch(IOException e) {
-		  System.out.println("Test commitTrans Fails");
+		  atranslist.get(tid).commit();
+		  Transaction temp = atranslist.remove(tid);
+		  wblist.addCommitted(temp);	  
 	  }
 	  finally{
 		  ADisk_lock.unlock();
@@ -183,11 +172,10 @@ public class ADisk implements DiskCallback{
   // to an active transaction.
   // 
   //-------------------------------------------------------
-  public void abortTransaction(TransID tid) throws IllegalArgumentException{//done
+  public void abortTransaction(TransID tid) throws IllegalArgumentException, IOException{//done
 	// Check that this is actually an active transaction
-      if (!transactions.containsKey(tid))
-    	  throw new IllegalArgumentException();
-      transactions.remove(tid);
+      atranslist.get(tid).abort();
+      atranslist.remove(tid);
   }
 
 
@@ -218,16 +206,7 @@ public class ADisk implements DiskCallback{
     IndexOutOfBoundsException{								// Not quite done yet
 	  try{
 		  ADisk_lock.lock();
-          
-          													// Check validity of arguments
-          if (buffer==null || !transactions.containsKey(tid) || buffer.length < Disk.SECTOR_SIZE)
-        	  throw new IllegalArgumentException();       
-          													// Check that this is a safe sector to access
-          if (sectorNum < Disk.NUM_OF_SECTORS-getNSectors() || sectorNum > Disk.NUM_OF_SECTORS)
-        	  throw new IndexOutOfBoundsException();
-          
-          //...................
-          
+          atranslist.get(tid).checkRead(sectorNum, buffer);
 	  }
 	  finally{
 		  ADisk_lock.unlock();
@@ -253,27 +232,8 @@ public class ADisk implements DiskCallback{
   // a valid sector number
   //
   //-------------------------------------------------------
-  public void writeSector(TransID tid, int sectorNum, byte buffer[])
-    throws IllegalArgumentException, 
-    IndexOutOfBoundsException{								// Not quite done yet
-	  
-	  														// Check that the transaction tid exists and that buffer is a valid sector
-//      if (!transactions.containsKey(tid) || buffer.length < Disk.SECTOR_SIZE)
-//    	  throw new IllegalArgumentException();
-//      
-//      														// Remember to put in README that addresses from 0 to getNumAvailableSectors are out of bounds
-      if (sectorNum < Disk.NUM_OF_SECTORS-getNSectors() || sectorNum > Disk.NUM_OF_SECTORS)
-    	  throw new IndexOutOfBoundsException();
-      
-//	  if (sectorNum<Disk.NUM_OF_SECTORS || sectorNum > getNSectors() +Disk.NUM_OF_SECTORS)
-//    	  throw new IllegalArgumentException();
-      
-      														// Remember to put in README that addresses from 0 to getNumAvailableSectors are out of bounds
-      if (!transactions.containsKey(tid))
-    	  throw new IndexOutOfBoundsException();
-	  
-      // Write buffer i think need to fix
-      transactions.get(tid).addWrite(sectorNum, buffer);
+  public void writeSector(TransID tid, int sectorNum, byte buffer[]){
+	  atranslist.get(tid).addWrite(sectorNum, buffer);
   }
   //-------------------------------------------------------
   // Update the failure probability for testing

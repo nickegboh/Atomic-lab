@@ -43,6 +43,10 @@ public class ActiveTransactionList{
         //return null;
     	try {
     		activeTransactionsMutex.lock();
+  		    // Is transaction active
+  		    if(!activeTransactions.containsKey(tid.getTidfromTransID())){
+  			  throw new IllegalArgumentException("No transaction with tid: " + tid);
+  		    }
             Transaction temp = (Transaction)activeTransactions.get(tid.getTidfromTransID());
           } 
           finally {
