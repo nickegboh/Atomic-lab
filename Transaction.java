@@ -22,6 +22,8 @@ public class Transaction{
  
     private SimpleLock mutex;
     private Status the_stat;
+    
+    private ADisk theDisk;
 
     private int logStart;
     private int logNSectors;
@@ -47,19 +49,20 @@ public class Transaction{
     // You can modify and add to the interfaces
     //
     // Constructors
-    public Transaction() {
+    public Transaction(ADisk myDisk) {
       Tid = new TransID();
       writes = new HashMap<Integer, ByteBuffer>(); 
       mutex = new SimpleLock();
       the_stat = Status.INPROGRESS;
-      //ADisk.atranslist.put(this);
+      theDisk = myDisk;
     }
     
-    private Transaction(int tid) {
+    private Transaction(int tid, ADisk myDisk) {
       Tid = new TransID(tid);
       writes = new HashMap<Integer, ByteBuffer>(); 
       mutex = new SimpleLock();
       the_stat = Status.INPROGRESS;
+      theDisk = myDisk;
     }
     // 
     // You can modify and add to the interfaces
@@ -125,11 +128,13 @@ public class Transaction{
             this.sectorsForLog = toWrite;
             
             //Write bytes to the log
-            if(!LogStatus.logWrite(toWrite, Tid)){
+            int transaction_head = theDisk.lstatus.logWrite(toWrite, Tid);
+            if(transaction_head == -1){
             	System.out.println("Redo Log Full!");
             	System.exit(-1);
             }
-            
+            this.rememberLogSectors(transaction_head, (toWrite.length / Disk.SECTOR_SIZE));
+                        
             //Create static order write array
             this.writesCommitted = writes.entrySet().toArray();
             
@@ -316,7 +321,7 @@ public class Transaction{
     // If this is a committed transaction, construct a
     // committed transaction and return it. Otherwise
     // throw an exception or return null.
-    public static Transaction parseLogBytes(byte buffer[]){
+    public Transaction parseLogBytes(byte buffer[]){
     	ByteBuffer trans_log = ByteBuffer.wrap(buffer);
     	
     	//read header info
@@ -334,7 +339,51 @@ public class Transaction{
     	}
     	
     	//Create new transaction
-    	Transaction newTrans = new Transaction(tid_temp);
+    	Transaction newTrans = new Transaction(tid_temp, this.theDisk);
+    	
+    	//Create writes in transactoin from log
+    	int sectorStart = header_length * Disk.SECTOR_SIZE; 
+		int sectorTail = sectorStart + Disk.SECTOR_SIZE; 
+    	for(int i = 0; i < write_length; i++){
+    		byte [] thisSector = Arrays.copyOfRange(buffer, sectorStart, sectorTail);
+    		newTrans.addWrite(sectorNums[i], thisSector);
+    		sectorStart += Disk.SECTOR_SIZE;
+    		sectorTail += Disk.SECTOR_SIZE;
+    	}
+        
+        // position trans_log to the footer sector
+    	trans_log.position((header_length + write_length) * Disk.SECTOR_SIZE);
+    	int footerTag = trans_log.getInt();
+    	if(footerTag != Transaction.FTR_Tag)
+    		return null;
+        int endTid = trans_log.getInt();
+        if(endTid != tid_temp) 
+          return null;
+        
+        newTrans.commitRecovery();
+        // newTrans is valid, return it to ADisk
+        return newTrans;
+    }
+    
+    public static Transaction parseLogBytesDebug(byte buffer[], ADisk myDisk){
+    	ByteBuffer trans_log = ByteBuffer.wrap(buffer);
+    	
+    	//read header info
+    	int headerTag = trans_log.getInt();
+    	if(headerTag != Transaction.HDR_Tag)
+    		return null;
+    	int tid_temp = trans_log.getInt();
+    	int write_length = trans_log.getInt();
+    	int header_length = trans_log.getInt();
+    	
+    	//read sector number's from header
+    	int[] sectorNums = new int[write_length];
+    	for(int i = 0; i < write_length; i++){
+    		sectorNums[i] = trans_log.getInt();
+    	}
+    	
+    	//Create new transaction
+    	Transaction newTrans = new Transaction(tid_temp, myDisk);
     	
     	//Create writes in transactoin from log
     	int sectorStart = header_length * Disk.SECTOR_SIZE; 

@@ -18,7 +18,8 @@ public class ActiveTransactionList{
      */
 	private HashMap activeTransactions;
     private SimpleLock activeTransactionsMutex;
-    Transaction temp = new Transaction();    
+    private Transaction temp;
+    
     public ActiveTransactionList() {
     	//writes = new HashMap<Integer, ByteBuffer>();
     	activeTransactions = new HashMap<Long, Transaction>(); 

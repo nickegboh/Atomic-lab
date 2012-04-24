@@ -6,10 +6,12 @@ import java.util.Map;
 
 
 public class ADiskUnit {
-	  
+	
+	  private static ADisk disk;
+	  	
 	  public static void main(String args[]) throws IllegalArgumentException, IOException
 	  {
-		ADisk disk = new ADisk(true);
+		disk = new ADisk(true);
 		int passcount = 0; 
 		int failcount = 0; 
 		
@@ -54,7 +56,7 @@ public class ADiskUnit {
 	  
 	  public static boolean testonewriteTrans() throws IllegalArgumentException, IOException {
 		  boolean pass = false; 
-		  Transaction temp = new Transaction();
+		  Transaction temp = new Transaction(disk);
 		  int tid = temp.getTid().getTidfromTransID();
 		  byte[] dat = new byte[Disk.SECTOR_SIZE];
 		  byte[] dat2 = new byte[Disk.SECTOR_SIZE];
@@ -89,10 +91,10 @@ public class ADiskUnit {
 	  
 	  public static boolean testmultiwriteTrans() throws IllegalArgumentException, IOException {
 		  boolean pass = true; 
-		  Transaction temp = new Transaction();
+		  Transaction temp = new Transaction(disk);
 		  int tid = temp.getTid().getTidfromTransID();
 		  
-		  //create samlple data
+		  //create samlple datas
 		  byte[] dat1 = new byte[Disk.SECTOR_SIZE];
 		  byte[] dat2 = new byte[Disk.SECTOR_SIZE];
 		  byte[] dat3 = new byte[Disk.SECTOR_SIZE];
@@ -186,7 +188,7 @@ public class ADiskUnit {
 	  public static boolean testmultiwriteTransCommit() throws IllegalArgumentException, IOException {
 		  boolean pass = true; 
 		  Map<Integer, byte[]> writes = new HashMap<Integer, byte[]>(); 
-		  Transaction temp = new Transaction();
+		  Transaction temp = new Transaction(disk);
 		  int tid = temp.getTid().getTidfromTransID();
 		  
 		  //create samlple data
@@ -305,7 +307,7 @@ public class ADiskUnit {
 	  
 	  public static boolean testParseLog() throws IllegalArgumentException, IOException {
 		  boolean pass = true; 
-		  Transaction temp = new Transaction();
+		  Transaction temp = new Transaction(disk);
 		  int tid = temp.getTid().getTidfromTransID();
 		  
 		  //create samlple data
@@ -352,7 +354,7 @@ public class ADiskUnit {
 			  	pass = false; 
 		  }
 		  
-		  Transaction fromLog = Transaction.parseLogBytes(logsectors);
+		  Transaction fromLog = Transaction.parseLogBytesDebug(logsectors, disk);
 		  
 		  //compare number of updated sectors
 		  if(temp.getNUpdatedSectors() != fromLog.getNUpdatedSectors()){
@@ -377,6 +379,8 @@ public class ADiskUnit {
 				  }
 			  }
 		  }
+		  
+		  
 		  
 		  //compare logs
 		  if(!LogCompare(fromLog.getSectorsForLogDebug(), logsectors)){

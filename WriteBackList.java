@@ -1,3 +1,7 @@
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.ListIterator;
+
 /*
  * WriteBackList.java
  *
@@ -10,15 +14,30 @@
  *
  */
 public class WriteBackList{
-
+	
+	
+	private LinkedList<Transaction> writeBackTransactions; 
+	private SimpleLock WriteBackLock;
     // 
     // You can modify and add to the interfaces
     //
 
+	//constructor
+	 public WriteBackList() {
+		 WriteBackLock = new SimpleLock();
+		 writeBackTransactions = new LinkedList<Transaction>();
+	 }
     // Once a transaction is committed in the log,
     // move it from the ActiveTransactionList to 
     // the WriteBackList
     public void addCommitted(Transaction t){
+	 	 try{
+	 		WriteBackLock.lock();
+			writeBackTransactions.add(t);
+		 } 
+		 finally {
+			 WriteBackLock.unlock();
+	    }
     }
 
     //
@@ -40,7 +59,15 @@ public class WriteBackList{
     // order may not match transaction ID order.
     //    
     public Transaction getNextWriteback(){
-        return null;
+	 	Transaction temp;  
+    	try{
+		 		WriteBackLock.lock();
+				temp = writeBackTransactions.peek();
+			 } 
+	 	 finally {
+				 WriteBackLock.unlock();
+		 }
+	 	 return temp;
     }
 
     //
@@ -48,7 +75,15 @@ public class WriteBackList{
     // are now safely on disk.
     //
     public Transaction removeNextWriteback(){
-        return null;
+	 	Transaction temp;  
+    	try{
+		 		WriteBackLock.lock();
+				temp = writeBackTransactions.remove();
+			 } 
+	 	 finally {
+				 WriteBackLock.unlock();
+		 }
+	 	 return temp;
     }
 
     //
@@ -61,7 +96,12 @@ public class WriteBackList{
     throws IllegalArgumentException, 
            IndexOutOfBoundsException
     {
-        return false;
+        ListIterator<Transaction> i = writeBackTransactions.listIterator();
+        boolean updateFound = false;;
+        while(i.hasNext())
+        	if(i.next().checkRead(secNum, buffer))
+        		updateFound = true; 
+        return updateFound;
     }
 
     

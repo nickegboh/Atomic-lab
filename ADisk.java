@@ -26,14 +26,21 @@ public class ADisk implements DiskCallback{
   private HashMap<TransID, Transaction> transactions = new HashMap<TransID, Transaction>();
   
   SimpleLock ADisk_lock;
-  Condition resultAvailable;
-  Condition queueSubstance;
+  Condition commitDone;
+  Condition writebackDone;
   
-  public static Disk d;
-  public static ActiveTransactionList atranslist = new ActiveTransactionList();
-  public static WriteBackList wblist = new WriteBackList(); 
+  public int commitBarrierSector;
+  public void setCBC(int i){ commitBarrierSector = i; }
+  public int commitBarrierTid;
+  public int writebackBarrierSector;
+  public int writebackBarrierTid;
+  
+  public Disk d;
+  public ActiveTransactionList atranslist;
+  public WriteBackList wblist;
+  public LogStatus lstatus;
   public float failprob = 0.0f;
-  
+  public Disk getDisk() { return d; }
   //-------------------------------------------------------
   //
   // Allocate an ADisk that stores its data using
@@ -52,8 +59,18 @@ public class ADisk implements DiskCallback{
 	  // build lock
 	  this.setFailureProb(0);
       ADisk_lock = new SimpleLock();
-      queueSubstance = ADisk_lock.newCondition();
-      resultAvailable = ADisk_lock.newCondition();
+      
+      //initialize lists and logs
+      lstatus = new LogStatus(this);
+      wblist = new WriteBackList();
+      lstatus = new LogStatus(this);
+      
+      commitDone = ADisk_lock.newCondition();
+      writebackDone = ADisk_lock.newCondition();
+      commitBarrierSector = 0;
+      commitBarrierTid = 0;
+      writebackBarrierSector = 0;
+      writebackBarrierTid = 0;
       
       if (format == true){
     	    d = null;
@@ -84,7 +101,7 @@ public class ADisk implements DiskCallback{
   //-------------------------------------------------------
   public static int getNSectors()
   {
-    return Disk.NUM_OF_SECTORS - ADisk.REDO_LOG_SECTORS;
+    return Disk.NUM_OF_SECTORS - ADisk.REDO_LOG_SECTORS - 1;
   } 
 
   //-------------------------------------------------------
@@ -95,7 +112,7 @@ public class ADisk implements DiskCallback{
   public TransID beginTransaction()// Not done yet
   {
 	  //TransID tid = new TransID();
-	  Transaction collect_trans = new Transaction();
+	  Transaction collect_trans = new Transaction(this);
 	  transactions.put(collect_trans.getTid(), collect_trans);
 	  return collect_trans.getTid();
   }
@@ -267,8 +284,27 @@ public class ADisk implements DiskCallback{
 
   @Override
   public void requestDone(DiskResult result) {
-  	//no idea what this should do
-  	return;
+	  
+	  //check for real error
+	  if(result.getStatus() == DiskResult.REAL_ERROR){
+          System.out.println("UNEXPECTED ERROR: real IO error");
+          System.exit(-1);
+        }	
+	  
+	  //check if this is the commit barrier sector and signal appropriately 
+	  if(result.getTag() == commitBarrierSector && result.getSectorNum() == commitBarrierTid && result.getOperation() == Disk.WRITE){
+		  	commitBarrierSector = -1; 
+		  	commitBarrierTid = -1;
+		  	commitDone.signal();
+	  }
+	  
+	  //check if this is the write back barrier sector and signal appropriately
+	  if(result.getTag() == writebackBarrierSector && result.getSectorNum() == writebackBarrierTid && result.getOperation() == Disk.WRITE){
+		  	writebackBarrierSector = -1;
+		  	writebackBarrierTid = -1;
+		  	writebackDone.signal();
+	  }
+  	
   }
 
     
