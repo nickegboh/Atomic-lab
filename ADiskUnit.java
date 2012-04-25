@@ -52,6 +52,7 @@ public class ADiskUnit {
 		  failcount++;
 		
 		System.out.println("\nPassed: " + passcount + " Failed: " + failcount);		
+		System.exit(0);
 	  }
 	  
 	  public static boolean testonewriteTrans() throws IllegalArgumentException, IOException {
@@ -260,8 +261,8 @@ public class ADiskUnit {
 		  return pass; 
 	  }
 	  
-	  public static boolean testInitialRead(){     
-	      try{
+	  public static boolean testInitialRead() throws IllegalArgumentException, IndexOutOfBoundsException, IOException{     
+//	      try{
 	              ADisk tester = new ADisk(true);
 	              tester.setFailureProb(0.0f);
 	              TransID t1 =  tester.beginTransaction();
@@ -282,11 +283,11 @@ public class ADiskUnit {
 	                      return false;
 	              }
 	              	
-	      }
-	      catch(Exception e){
-	    	  System.out.println("TestInitialRead Fails");
-	    	  return false;
-	      }
+//	      }
+//	      catch(Exception e){
+//	    	  System.out.println("TestInitialRead Fails");
+//	    	  return false;
+//	      }
 	  }
 
 	  public static boolean testTransID(){

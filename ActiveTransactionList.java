@@ -18,7 +18,7 @@ public class ActiveTransactionList{
      */
 	private HashMap activeTransactions;
     private SimpleLock activeTransactionsMutex;
-    private Transaction temp;
+    //private Transaction temp;
     
     public ActiveTransactionList() {
     	//writes = new HashMap<Integer, ByteBuffer>();
@@ -40,27 +40,28 @@ public class ActiveTransactionList{
 
     public Transaction get(TransID tid){
         //System.exit(-1); // TBD
-        //return null;
+    	Transaction temp;
     	try {
     		activeTransactionsMutex.lock();
   		    // Is transaction active
   		    if(!activeTransactions.containsKey(tid.getTidfromTransID())){
   			  throw new IllegalArgumentException("No transaction with tid: " + tid);
   		    }
-            Transaction temp = (Transaction)activeTransactions.get(tid.getTidfromTransID());
+            temp = (Transaction)activeTransactions.get(tid.getTidfromTransID());
           } 
           finally {
         	  activeTransactionsMutex.unlock();
           }
+          //temp = (Transaction)activeTransactions.get(tid.getTidfromTransID());
     	  return temp; 
     }
 
     public Transaction remove(TransID tid){
         //System.exit(-1); // TBD
-        //return null;
+    	Transaction temp;
     	try {
     		activeTransactionsMutex.lock();
-            Transaction temp = (Transaction)activeTransactions.remove(tid.getTidfromTransID());
+            temp = (Transaction)activeTransactions.remove(tid.getTidfromTransID());
           } 
           finally {
         	  activeTransactionsMutex.unlock(); 

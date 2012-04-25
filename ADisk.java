@@ -58,7 +58,7 @@ public class ADisk implements DiskCallback{
 	  this.setFailureProb(0);
       ADisk_lock = new SimpleLock();
       waitLock = new SimpleLock();
-      
+      atranslist = new ActiveTransactionList();
       //initialize lists and logs
       lstatus = new LogStatus(this);
       wblist = new WriteBackList(this);
@@ -206,6 +206,20 @@ public class ADisk implements DiskCallback{
     IndexOutOfBoundsException{								// Not quite done yet
 	  try{
 		  ADisk_lock.lock();
+//		  if (buffer==null || !atranslist.get(tid).checkRead(sectorNum, buffer) || buffer.length < Disk.SECTOR_SIZE)
+//        	  throw new IllegalArgumentException();       
+//          													// Check that this is a safe sector to access
+//          if (sectorNum < Disk.NUM_OF_SECTORS-getNSectors() || sectorNum > Disk.NUM_OF_SECTORS)
+//        	  throw new IndexOutOfBoundsException();
+          
+		  
+//		  for(int i=0; i < buffer.length; i++){
+//			  buffer[i] = 0;
+//		  }
+		  //int tag = (int)(tid.getTidfromTransID() % 10000);
+          d.startRequest(Disk.READ, tid.getTidfromTransID(), sectorNum, buffer);
+          
+          wblist.checkRead(sectorNum, buffer);
           atranslist.get(tid).checkRead(sectorNum, buffer);
 	  }
 	  finally{
