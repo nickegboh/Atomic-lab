@@ -168,12 +168,11 @@ public class LogStatus{
 	        theDisk.logReadWait();
 	    	
 	    	int nextLength = Transaction.parseHeader(nextHeader);
-	    	
 	    	result = new byte[Disk.SECTOR_SIZE * nextLength];
 	    	
 	    	byte[] tempByte = new byte[Disk.SECTOR_SIZE];
 	    	//Read in the transaction
-	    	for(int i = 0; i < (Disk.SECTOR_SIZE * nextLength); i++){
+	    	for(int i = 0; i < nextLength; i++){
 	            theDisk.d.startRequest(Disk.READ, Disk.SECTOR_SIZE, recovery_head, tempByte);
 	            theDisk.logReadTid = Disk.SECTOR_SIZE;
 	            theDisk.logReadSector = recovery_head;
@@ -200,7 +199,7 @@ public class LogStatus{
     	if(available_sectors >= nSectors){
     		int temp = log_tail; 
     		log_tail += nSectors;
-    		log_tail = ((log_tail + redo_log_size) % redo_log_size) + redo_log_size;
+    		log_tail = ((log_tail - redo_log_start) % redo_log_size) + redo_log_start;
     		available_sectors -= nSectors; 
     		
     		//update tail on disk 

@@ -80,16 +80,17 @@ public class ADisk implements DiskCallback{
       logReadSector = -1;
       logReadTid = -1;
       
+	    d = null;
+	    try{
+	      d = new Disk(this);
+	    }
+	    catch(FileNotFoundException fnf){
+	      System.out.println("Unable to open disk file");
+	      System.exit(-1);
+	    }
+      
       if (format == true){
     	    lstatus = new LogStatus(this, false);
-    	    d = null;
-    	    try{
-    	      d = new Disk(this);
-    	    }
-    	    catch(FileNotFoundException fnf){
-    	      System.out.println("Unable to open disk file");
-    	      System.exit(-1);
-    	    }
       } 
       else {
     	  //RECOVERY
