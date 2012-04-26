@@ -8,6 +8,7 @@ import java.util.Map;
 public class ADiskUnit {
 	
 	  private static ADisk disk;
+	  private static ADisk disk_2;
 	  	
 	  public static void main(String args[]) throws IllegalArgumentException, IOException
 	  {
@@ -68,6 +69,12 @@ public class ADiskUnit {
 		  passcount++;
 		else 
 		  failcount++;
+		
+		//More recovery testing
+		if(recovery())
+			passcount++;
+		else
+			failcount++;
 		
 		System.out.println("\nPassed: " + passcount + " Failed: " + failcount);		
 		System.exit(0);
@@ -547,6 +554,7 @@ public class ADiskUnit {
 		  return returnBool;
 	  }
 	  
+	  // Recovery Tests start here
 	  public static boolean recoveryTestshort() throws IllegalArgumentException, IOException {
 		  TransID temp1 = disk.beginTransaction();
 		  boolean pass = true;
@@ -578,6 +586,47 @@ public class ADiskUnit {
 		  return pass;
 		  
 	  }
+	  public static boolean recovery() throws IllegalArgumentException, IOException {
+		  TransID temp1 = disk.beginTransaction();
+		  boolean pass = true;
+		  int garbage = temp1.getTidfromTransID();
+		  byte[] dat1 = new byte[Disk.SECTOR_SIZE];
+		  byte[] datresult = new byte[Disk.SECTOR_SIZE];
+		  for(int i = 0; i < dat1.length; i++){
+			  if(i == dat1.length-1 || i%2 == 0)
+				  dat1[i] = 'W';
+			  else
+				  dat1[i] = 'a';
+		  }
+          // Create a brand new, formatted ADisk
+          // Set it's fail probability to 100% and do some
+          // random writes to crash it.
+          
+          //disk = new ADisk(true);
+          disk.writeSector(temp1, garbage, dat1);
+          disk.commitTransaction(temp1);
+          
+    	   // Now try to recover it
+          
+          // Check that the data we wrote is still there!
+          //
+          //////
+          disk_2  = new ADisk(false);
+		  
+		  temp1 = disk_2.beginTransaction();
+		  disk_2.readSector(temp1, garbage, datresult);
+                  if(!SectorCheck(dat1, datresult)){
+        			  System.out.println("Test Recovery: First Recovery Read Crashed");
+        			  pass = false; 
+        		  }
+        		  
+        		  if(pass)
+        			  System.out.println("Test Recovery: Passed!");
+        		  else
+        			  System.out.println("Test Recovery: Crashed!");
+        		  return pass;
+  }
+
 	  
 	  private static boolean SectorCheck(byte[] dat1, byte[] dat2){
 		  if(dat1.length != Disk.SECTOR_SIZE || dat2.length != Disk.SECTOR_SIZE){
