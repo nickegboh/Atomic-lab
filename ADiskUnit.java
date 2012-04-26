@@ -1,3 +1,4 @@
+import java.util.*;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -72,6 +73,15 @@ public class ADiskUnit {
 		
 		//More recovery testing
 		if(recovery())
+			passcount++;
+		else
+			failcount++;
+		
+		/* every thing implemented, so writing more tests   */
+		
+		//Does a bunch of read, writes & commits to sector, then compare the content
+		//and then checks the disk recovery
+		if(adiskTest())
 			passcount++;
 		else
 			failcount++;
@@ -534,7 +544,7 @@ public class ADiskUnit {
 			  System.out.println("Test ADisk Basic: Sixth Read Mismatch");
 		  }
 		  
-		  //test read after commiting second transaction
+		  //test read after committing second transaction
 		  disk.commitTransaction(temp2);
 		  disk.readSector(temp1, 15, datret);
 		  if(!SectorCheck(datret, dat3)){
@@ -657,5 +667,175 @@ public class ADiskUnit {
 		  }
 		  return true; 
 	}
-				  
+	//////////////////////
+	 public static boolean adiskTest() throws IllegalArgumentException, IOException {
+		 System.out.println("TESTING ADISK");
+		 boolean xit_yes = true;
+		 disk = new ADisk(true);
+	    
+	    byte[] b1 = new byte[512]; 
+	    byte[] b2 = new byte[512];
+	    byte[] b3 = new byte[512]; 
+	    byte[] b4 = new byte[512];
+
+	    final byte[] ALL_ZEROS  = new byte[512];
+	    final byte[] ALL_ONES   = getOnes();
+	    final byte[] ALL_TWOS   = getTwos(); 
+	    final byte[] ALL_THREES = getThrees();
+	    final byte[] ALL_FOURS  = getFours();
+	    final byte[] ALL_FIVES  = getFives();
+	    final byte[] ALL_SIXES  = getSixes();
+	    final byte[] ALL_SEVENS = getSevens();
+
+	    // make some transactions
+	    TransID t1 = disk.beginTransaction();
+	    TransID t2 = disk.beginTransaction();
+	    TransID t3 = disk.beginTransaction();
+	    TransID t4 = disk.beginTransaction();
+
+	    try {
+	      disk.writeSector(t1, 1, ALL_ONES);
+	      disk.writeSector(t1, 2, ALL_TWOS);
+	      disk.writeSector(t2, 1, ALL_THREES);
+	      disk.writeSector(t2, 2, ALL_FOURS);
+	      disk.writeSector(t3, 1, ALL_FIVES);
+	      disk.writeSector(t3, 2, ALL_SIXES);
+	      disk.writeSector(t4, 1, ALL_SEVENS);
+	      disk.readSector(t2, 1, b1);
+	      disk.readSector(t3, 2, b2);
+	      disk.commitTransaction(t3);
+	      disk.readSector(t2, 1, b3);
+	      disk.commitTransaction(t1);
+	      disk.readSector(t4, 2, b4);
+	      
+	    }
+	    catch(Exception e) {
+	      e.printStackTrace();
+	      System.exit(1);
+	    }
+
+	    if(!Arrays.equals(b1, getThrees())) {
+	      System.out.println("FAILED ADisk test 1");
+	      System.out.println("Expecting ALL_THREES, got\n" + Arrays.toString(b1));
+	      xit_yes = false;
+	    }
+	    else {
+	      System.out.println("PASSED ADisk test 1");
+	     
+	    }
+
+	    if(!Arrays.equals(b2, getSixes())) {
+	      System.out.println("FAILED ADisk test 2");
+	      System.out.println("Expecting ALL_SIXES, got\n" + Arrays.toString(b2));
+	      xit_yes = false;
+	    }
+	    else {
+	      System.out.println("PASSED ADisk test 2");
+	     
+	    }
+
+	    if(!Arrays.equals(b3, getThrees())) {
+	      System.out.println("FAILED ADisk test 3");
+	      System.out.println("Expecting ALL_THREES, got\n" + Arrays.toString(b3));
+	      xit_yes = false;
+	    }
+	    else {
+	      System.out.println("PASSED ADisk test 3");
+	      
+	    }
+
+	    if(!Arrays.equals(b4, getTwos())) {
+	      System.out.println("FAILED ADisk test 4");
+	      System.out.println("Expecting ALL_TWOS, got\n" + Arrays.toString(b4));
+	      xit_yes = false;
+	    }
+	    else {
+	      System.out.println("PASSED ADisk test 4");
+	     
+	    }
+
+	    //adisk.close();
+	    System.out.println("Simulating ADisk crash");
+	    
+	    try {
+	      // not formatting
+	      System.out.println("  STARTING RECOVERY");
+	      disk = new ADisk(false);
+	      System.out.println("  FINISHED RECOVERY");
+	      byte[] b5 = new byte[512];
+	      TransID t5 = disk.beginTransaction();
+	      disk.readSector(t5, 1, b5);
+
+	      if(!Arrays.equals(b5, getOnes())) {
+	        System.out.println("FAILED ADisk test 5");
+	        System.out.println("Expecting ALL_ONES from sector 1, got\n" + Arrays.toString(b5));
+	        xit_yes = false;
+	      }
+	      else {
+	        System.out.println("PASSED ADisk test 5");
+	      }
+	    }
+	    catch(Exception e) {
+	      e.printStackTrace();
+	      System.exit(1);
+	    }
+	    return xit_yes;
+	    //adisk.close();
+	  }
+
+	/////////////////////
+	 static byte[] getZeros() {
+		    return new byte[512];
+		  }
+		  static byte[] getOnes() {
+		    byte[] ALL_ONES   = new byte[512];
+		    for(int ii = 0; ii < 512; ++ii) {
+		      ALL_ONES[ii] = 1;
+		    }
+		    return ALL_ONES;
+		  }
+		  static byte[] getTwos() {
+		    byte[] ALL_TWOS   = new byte[512];
+		    for(int ii = 0; ii < 512; ++ii) {
+		      ALL_TWOS[ii] = 2;
+		    }
+		    return ALL_TWOS;
+		  }
+		  static byte[] getThrees() {
+		    byte[] ALL_THREES   = new byte[512];
+		    for(int ii = 0; ii < 512; ++ii) {
+		      ALL_THREES[ii] = 3;
+		    }
+		    return ALL_THREES;
+		  }
+		  static byte[] getFours() {
+		    byte[] ALL_FOURS   = new byte[512];
+		    for(int ii = 0; ii < 512; ++ii) {
+		      ALL_FOURS[ii] = 4;
+		    }
+		    return ALL_FOURS;
+		  }
+		  static byte[] getFives() {
+		    byte[] ALL_FIVES   = new byte[512];
+		    for(int ii = 0; ii < 512; ++ii) { 
+		      ALL_FIVES[ii] = 5;
+		    }
+		    return ALL_FIVES;
+		  }
+		  static byte[] getSixes() {
+		    byte[] ALL_SIXES   = new byte[512];
+		    for(int ii = 0; ii < 512; ++ii) {
+		      ALL_SIXES[ii] = 6;
+		    }
+		    return ALL_SIXES;
+		  }
+		  static byte[] getSevens() {
+		    byte[] ALL_SEVENS   = new byte[512];
+		    for(int ii = 0; ii < 512; ++ii) {
+		      ALL_SEVENS[ii] = 7;
+		    }
+		    return ALL_SEVENS;
+		  }
+
+	//////////////////// 
 }
