@@ -82,7 +82,7 @@ public class LogStatus{
     //Write a transaction to the log.  Receives transaction in the form of an array of bytes.  
     //Returns true for success and false for fail.  
     public int logWrite(byte[] transaction, TransID tid) throws IllegalArgumentException, IOException{
-        int returnval = -1;
+        int returnval = 1;
     	try{
 		logLock.lock();
 		int sectors = transaction.length / Disk.SECTOR_SIZE;
@@ -219,6 +219,9 @@ public class LogStatus{
         byte[] headerBlock = b.array();
         
         theDisk.getDisk().startRequest(Disk.WRITE, Disk.NUM_OF_SECTORS, head_location, headerBlock);
+        theDisk.logReadTid = Disk.NUM_OF_SECTORS;
+        theDisk.logReadSector = head_location;
+        theDisk.logReadWait();
         
         return; 
     }

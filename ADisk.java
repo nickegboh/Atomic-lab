@@ -249,6 +249,25 @@ public class ADisk implements DiskCallback{
 		  ADisk_lock.unlock();
 	  }
   }
+  
+  
+  /// Read sector DISK ONLY this is used for debugging to make sure changes were written to disk
+  
+  public void readSectorDiskOnly(TransID tid, int sectorNum, byte buffer[])
+  throws IOException, IllegalArgumentException, 
+  IndexOutOfBoundsException{								// Not quite done yet
+	  try{
+		  ADisk_lock.lock();
+
+        d.startRequest(Disk.READ, tid.getTidfromTransID(), sectorNum, buffer);
+        readTid = tid.getTidfromTransID();
+        readSector = sectorNum;
+        readWait();
+	  }
+	  finally{
+		  ADisk_lock.unlock();
+	  }
+}
 
   //-------------------------------------------------------
   //
@@ -420,7 +439,6 @@ public class ADisk implements DiskCallback{
     
     public void run(ADisk theDisk) throws IllegalArgumentException, IOException{
        Transaction temp;
-   	  
     	   temp = wblist.getNextWriteback();
     	   while(temp != null){
     		   //System.out.println("Working");
