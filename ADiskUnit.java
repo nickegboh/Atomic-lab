@@ -63,6 +63,12 @@ public class ADiskUnit {
 		else 
 		  failcount++;
 		
+	    //Test Recovery Short
+		if(recoveryTestshort())
+		  passcount++;
+		else 
+		  failcount++;
+		
 		System.out.println("\nPassed: " + passcount + " Failed: " + failcount);		
 		System.exit(0);
 	  }
@@ -539,6 +545,38 @@ public class ADiskUnit {
 		  else
 			  System.out.println("Test ADisk Basic: Failed!");
 		  return returnBool;
+	  }
+	  
+	  public static boolean recoveryTestshort() throws IllegalArgumentException, IOException {
+		  TransID temp1 = disk.beginTransaction();
+		  boolean pass = true;
+		  
+		  byte[] dat1 = new byte[Disk.SECTOR_SIZE];
+		  byte[] datresult = new byte[Disk.SECTOR_SIZE];
+		  for(int i = 0; i < dat1.length; i++)
+			  dat1[i] = 'a';
+		  
+		  disk.writeSector(temp1, 15, dat1);
+		  disk.commitTransaction(temp1);
+		  
+		  disk = null;
+		  
+		  disk = new ADisk(false);
+		  
+		  temp1 = disk.beginTransaction();
+		  disk.readSector(temp1, 15, datresult);
+		  
+		  if(!SectorCheck(dat1, datresult)){
+			  System.out.println("Test Recovery Short: First Recovery Read Failed");
+			  pass = false; 
+		  }
+		  
+		  if(pass)
+			  System.out.println("Test Recovery Short: Passed!");
+		  else
+			  System.out.println("Test Recovery Short: Failed!");
+		  return pass;
+		  
 	  }
 	  
 	  private static boolean SectorCheck(byte[] dat1, byte[] dat2){
