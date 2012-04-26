@@ -423,21 +423,27 @@ public class ADisk implements DiskCallback{
    	  
     	   temp = wblist.getNextWriteback();
     	   while(temp != null){
-    		   System.out.println("Working");
+    		   //System.out.println("Working");
     		  //write next transaction to disk.
     		  int nsects = temp.getNUpdatedSectors();
     		  byte[] towrite = new byte[Disk.SECTOR_SIZE];
     		  for(int i = 0; i < nsects; i++){
     			  int secNum = temp.getUpdateI(i, towrite);
+    			  //System.out.println("towrite[0] " + (char)towrite[0] + " secnum: " + secNum);
     			  theDisk.d.startRequest(Disk.WRITE, Disk.NUM_OF_SECTORS+5, secNum, towrite);
-    			  if(i == (nsects-1))
+    			  wbbarrierTag = Disk.NUM_OF_SECTORS+5;
+			  	  wbbarrierSec = secNum;
+			  	  wbbarrierWait();			  	  
+    			  /*if(i == (nsects-1)){
     				  //add barrier because can not remove from writeback list until all sectors written to disk. 
     				  theDisk.d.addBarrier();
     			  	  wbbarrierTag = Disk.NUM_OF_SECTORS+5;
     			  	  wbbarrierSec = secNum;
+    			  }*/
     		  }
-    		  wbbarrierWait();
+    		  //wbbarrierWait();
     		  wblist.removeNextWriteback();
+    		  temp = wblist.getNextWriteback();
     	   }
   }
  }
