@@ -19,7 +19,7 @@ public class TransID{
   //
   // Implement this class
   //
-
+	 private static int global_tid_count; 
 	 private static int counter = 0;
 	 private SimpleLock TransIDLock = new SimpleLock();
 	 private int tid; 
@@ -37,9 +37,11 @@ public class TransID{
 	 
 	 public TransID(int tidGiven) {
 	 	 try{
+	 		 if(tidGiven > global_tid_count)
+	 			global_tid_count = tidGiven;
 			 TransIDLock.lock();
 			 tid = tidGiven;
-			 setCounter(tidGiven+1);
+			 setCounter(global_tid_count+1);
 		 } 
 		 finally {
 			 TransIDLock.unlock();
