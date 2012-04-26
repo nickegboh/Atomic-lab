@@ -29,8 +29,8 @@ public class LogStatus{
 	final static int redo_log_start = Disk.NUM_OF_SECTORS - ADisk.REDO_LOG_SECTORS - 1;
     
     //head - tail
-    private int log_head = redo_log_start; 
-    private int log_tail = redo_log_start; 
+    private int log_head; 
+    private int log_tail;
     
     //numbrt of available sectors in the log
     private int available_sectors = ADisk.REDO_LOG_SECTORS; 
@@ -46,8 +46,16 @@ public class LogStatus{
     // sectors is done. These sectors may be safely 
     // reused for future transactions. (Circular log)
     //
-    public LogStatus(ADisk myDisk){
-    	theDisk = myDisk; 
+    public LogStatus(ADisk myDisk, boolean recovery) throws IllegalArgumentException, IOException{
+    	theDisk = myDisk;
+    	if(!recovery){
+    		log_head = redo_log_start; 
+        	log_tail = redo_log_start;
+    	}
+    	else {
+    		recoveryInitializeLog();
+    	}
+    		
     }
     
     public void writeBackDone(int startSector, int nSectors) throws IllegalArgumentException, IOException

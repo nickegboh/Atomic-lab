@@ -51,6 +51,12 @@ public class ADiskUnit {
 		else 
 		  failcount++;
 		
+	    //Test ADisk Basic
+		if(ADiskTestbasic())
+		  passcount++;
+		else 
+		  failcount++;
+		
 		System.out.println("\nPassed: " + passcount + " Failed: " + failcount);		
 		System.exit(0);
 	  }
@@ -395,13 +401,99 @@ public class ADiskUnit {
 			  System.out.println("Test Parse Log: Failed!");
 		  return pass; 
 	  }
-
+	  
+	  public static boolean ADiskTestbasic() throws IllegalArgumentException, IOException {
+		  boolean returnBool = true; 
+		  
+		  //create test transactions
+		  TransID temp1 = disk.beginTransaction();
+		  TransID temp2 = disk.beginTransaction();
+		  
+		  //create test data
+		  byte[] dat1 = new byte[Disk.SECTOR_SIZE];
+		  byte[] dat2 = new byte[Disk.SECTOR_SIZE];
+		  byte[] dat3 = new byte[Disk.SECTOR_SIZE];
+		  byte[] dat4 = new byte[Disk.SECTOR_SIZE];
+		  byte[] datret = new byte[Disk.SECTOR_SIZE];
+		  for(int i = 0; i < dat1.length; i++)
+			  dat1[i] = 'a';
+		  for(int i = 0; i < dat2.length; i++)
+			  dat2[i] = 'b';
+		  for(int i = 0; i < dat3.length; i++)
+			  dat3[i] = 'c';
+		  for(int i = 0; i < dat4.length; i++)
+			  dat4[i] = 'd';
+		  
+		  disk.writeSector(temp1, 15, dat1);
+		  disk.writeSector(temp1, 17, dat2);
+		  disk.commitTransaction(temp1);
+		  
+		  //test read with just temp1
+		  disk.readSector(temp1, 15, datret);
+		  if(!SectorCheck(datret, dat1)){
+			  returnBool = false; 
+			  System.out.println("Test ADisk Basic: First Read Mismatch");
+		  }
+		  disk.readSector(temp1, 17, datret);
+		  if(!SectorCheck(datret, dat2)){
+			  returnBool = false; 
+			  System.out.println("Test ADisk Basic: Second Read Mismatch");
+		  }
+		  
+		  //add more writes to uncommited transactions and test read from first transactoin and uncommitted transactions.
+		  disk.writeSector(temp2, 15, dat3);
+		  disk.writeSector(temp2, 17, dat4);
+		  
+		  //test read with just temp1
+		  disk.readSector(temp1, 15, datret);
+		  if(!SectorCheck(datret, dat1)){
+			  returnBool = false; 
+			  System.out.println("Test ADisk Basic: Third Read Mismatch");
+		  }
+		  disk.readSector(temp1, 17, datret);
+		  if(!SectorCheck(datret, dat2)){
+			  returnBool = false;
+			  System.out.println("Test ADisk Basic: Fourth Read Mismatch");
+		  }
+		  
+		  //test read with just temp1
+		  disk.readSector(temp2, 15, datret);
+		  if(!SectorCheck(datret, dat3)){
+			  returnBool = false; 
+			  System.out.println("Test ADisk Basic: Fifth Read Mismatch");
+		  }
+		  disk.readSector(temp2, 17, datret);
+		  if(!SectorCheck(datret, dat4)){
+			  returnBool = false; 
+			  System.out.println("Test ADisk Basic: Sixth Read Mismatch");
+		  }
+		  
+		  //test read after commiting second transaction
+		  disk.commitTransaction(temp2);
+		  disk.readSector(temp1, 15, datret);
+		  if(!SectorCheck(datret, dat3)){
+			  returnBool = false; 
+			  System.out.println("Test ADisk Basic: Fifth Read Mismatch");
+		  }
+		  disk.readSector(temp1, 17, datret);
+		  if(!SectorCheck(datret, dat4)){
+			  returnBool = false; 
+			  System.out.println("Test ADisk Basic: Sixth Read Mismatch");
+		  }
+		  
+		  if(returnBool)
+			  System.out.println("Test ADisk Basic: Passed!");
+		  else
+			  System.out.println("Test ADisk Basic: Failed!");
+		  return returnBool;
+	  }
 	  
 	  private static boolean SectorCheck(byte[] dat1, byte[] dat2){
 		  if(dat1.length != Disk.SECTOR_SIZE || dat2.length != Disk.SECTOR_SIZE){
 			  System.out.println("Sector Check: Incorrect Sector Size");
 			  return false; 
 		  }
+		  //System.out.println("seccheck: " + (char)dat1[0] + " == " + (char)dat2[0]);
 		  for(int i = 0; i < Disk.SECTOR_SIZE; i++){
 			  if(dat1[i] != dat2[i]){
 				  //System.out.println((char)dat1[i] + " - " + (char)dat2[i]);
