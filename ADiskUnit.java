@@ -27,6 +27,12 @@ public class ADiskUnit {
 		else 
 			failcount++;
 		
+		//Test Single commit with one TID
+		if(testSingleCommitWithOneTID())
+            passcount++;
+        else
+            failcount++;
+		
 		//Test Multi Write, One Transaction Commit Test
 		if(testmultiwriteTransCommit())
 			passcount++;
@@ -192,6 +198,53 @@ public class ADiskUnit {
 		  return pass; 
 	  }
 
+	  public static byte[] generateSector(byte input){
+          byte [] sampleSector = new byte[512];
+            for(int i = 0; i < sampleSector.length; i++)
+                    sampleSector[i] = input;
+            return sampleSector;
+  }
+  
+  public static boolean testSingleCommitWithOneTID(){                //Java presets the Hard Drive to 0's 
+          try{
+                  ADisk tester = new ADisk(true);
+                  tester.setFailureProb(0.0f);
+                  TransID t1 =  tester.beginTransaction();
+                  
+                  byte [] sampleSectorT1 = generateSector((byte) 0);
+                    for(int i = 0; i < sampleSectorT1.length; i++)
+                            sampleSectorT1[i] = 0;
+              tester.writeSector(t1, 1024, sampleSectorT1);
+                 
+              tester.commitTransaction(t1);
+              
+              TransID t2 =  tester.beginTransaction();
+                  byte[] resultT1 = new byte[512];
+                          tester.readSector(t2, 1024, resultT1);
+                  
+                  boolean testGood = true;
+                  for(int i = 0; i< 512; i++)
+                  {
+                          //System.out.println(resultT1[i]+", "+sampleSectorT1[i]);
+                          if(resultT1[i] != sampleSectorT1[i])
+                                  testGood = false;
+                  }
+                  
+                  if(testGood){
+                          System.out.println("TestSingleCommitWithOneTID Succeeds");
+                          return true;
+                  }
+                  else{
+                          System.out.println("TestSingleCommitWithOneTID Fails");
+                          return false;
+                  }
+          }
+          catch(Exception e){
+                          System.out.println("TestSingleCommitWithOneTID Fails");
+                          return false;
+          }
+  }
+	  
 	  public static boolean testmultiwriteTransCommit() throws IllegalArgumentException, IOException {
 		  boolean pass = true; 
 		  Map<Integer, byte[]> writes = new HashMap<Integer, byte[]>(); 
