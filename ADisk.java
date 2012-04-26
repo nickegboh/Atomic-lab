@@ -28,6 +28,8 @@ public class ADisk implements DiskCallback{
   Condition writebackDone;
   Condition readDone;
   Condition logReadDone;
+  Condition wbitem;
+  Condition wbbarrier;
   
   public int commitBarrierSector;
   public void setCBC(int i){ commitBarrierSector = i; }
@@ -38,7 +40,10 @@ public class ADisk implements DiskCallback{
   public int readTid;
   public int logReadSector;
   public int logReadTid;
-  
+  public int wbbarrierSec;
+  public int wbbarrierTag;
+  public WriteBackThread writebackthread; 
+	  
   public Disk d;
   public ActiveTransactionList atranslist;
   public WriteBackList wblist;
@@ -71,6 +76,7 @@ public class ADisk implements DiskCallback{
       writebackDone = waitLock.newCondition();
       readDone = waitLock.newCondition();
       logReadDone = waitLock.newCondition();
+      wbbarrier = waitLock.newCondition();
       commitBarrierSector = -1;
       commitBarrierTid = -1;
       writebackBarrierSector = -1;
@@ -79,15 +85,20 @@ public class ADisk implements DiskCallback{
       readTid = -1;
       logReadSector = -1;
       logReadTid = -1;
+      wbbarrierSec = -1;
+      wbbarrierTag = -1;
       
-	    d = null;
-	    try{
-	      d = new Disk(this);
-	    }
-	    catch(FileNotFoundException fnf){
-	      System.out.println("Unable to open disk file");
-	      System.exit(-1);
-	    }
+	  d = null;
+	  try{
+	    d = new Disk(this);
+	  }
+	  catch(FileNotFoundException fnf){
+	    System.out.println("Unable to open disk file");
+	    System.exit(-1);
+	  }
+	  
+	  //create writeback thread
+	  writebackthread = new WriteBackThread();
       
       if (format == true){
     	    lstatus = new LogStatus(this, false);
@@ -311,6 +322,14 @@ public class ADisk implements DiskCallback{
 		  	logReadDone.signal();
 		  	return;
 		}
+		
+		//check if this is a writeback barrier request
+		if(result.getTag() == wbbarrierTag && result.getSectorNum() == wbbarrierSec && result.getOperation() == Disk.WRITE){
+			wbbarrierTag = -1;
+			wbbarrierSec = -1;
+			wbbarrier.signal();
+		  	return;
+		}
 	  
 	 }
 	 finally{
@@ -363,5 +382,64 @@ public class ADisk implements DiskCallback{
       waitLock.unlock();
     }
   }
+  
+  //function to wait for writeback barrier
+  public void wbbarrierWait()
+  {
+    try{
+      waitLock.lock();
+      while(wbbarrierTag != -1){
+    	  wbbarrier.awaitUninterruptibly();
+      }
+      return;
+    }
+    finally{
+      waitLock.unlock();
+    }
+  }
+  
+  //function to wait for disk log 
+  public void writebackWait()
+  {
+    try{
+      waitLock.lock();
+      while(wblist.getNextWriteback() == null){
+    	  System.out.println("working");
+    	  wbitem.awaitUninterruptibly();
+      }
+      return;
+    }
+    finally{
+      waitLock.unlock();
+    }
+  }
+  
+
+//Writeback thread!
+ public class WriteBackThread extends Thread {
+    
+    public void run(ADisk theDisk) throws IllegalArgumentException, IOException{
+       Transaction temp;
+   	  
+    	   temp = wblist.getNextWriteback();
+    	   while(temp != null){
+    		   System.out.println("Working");
+    		  //write next transaction to disk.
+    		  int nsects = temp.getNUpdatedSectors();
+    		  byte[] towrite = new byte[Disk.SECTOR_SIZE];
+    		  for(int i = 0; i < nsects; i++){
+    			  int secNum = temp.getUpdateI(i, towrite);
+    			  theDisk.d.startRequest(Disk.WRITE, Disk.NUM_OF_SECTORS+5, secNum, towrite);
+    			  if(i == (nsects-1))
+    				  //add barrier because can not remove from writeback list until all sectors written to disk. 
+    				  theDisk.d.addBarrier();
+    			  	  wbbarrierTag = Disk.NUM_OF_SECTORS+5;
+    			  	  wbbarrierSec = secNum;
+    		  }
+    		  wbbarrierWait();
+    		  wblist.removeNextWriteback();
+    	   }
+  }
+ }
     
 }

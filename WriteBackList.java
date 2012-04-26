@@ -1,3 +1,4 @@
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.ListIterator;
@@ -33,10 +34,12 @@ public class WriteBackList{
     // Once a transaction is committed in the log,
     // move it from the ActiveTransactionList to 
     // the WriteBackList
-    public void addCommitted(Transaction t){
+    public void addCommitted(Transaction t) throws IllegalArgumentException, IOException{
 	 	 try{
 	 		WriteBackLock.lock();
 			writeBackTransactions.add(t);
+			if(!theDisk.writebackthread.isAlive())
+				theDisk.writebackthread.run(theDisk);
 		 } 
 		 finally {
 			 WriteBackLock.unlock();
