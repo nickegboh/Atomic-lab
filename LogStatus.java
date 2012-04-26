@@ -31,6 +31,8 @@ public class LogStatus{
     //head - tail
     private int log_head; 
     private int log_tail;
+    private int recovery_head;
+    private int recovery_tail; 
     
     //numbrt of available sectors in the log
     private int available_sectors = ADisk.REDO_LOG_SECTORS; 
@@ -137,6 +139,8 @@ public class LogStatus{
                     logLock.lock();
 				    // get head and tail info from disk
 				    getHeadTail();
+				    recovery_head = log_head;
+				    recovery_tail = log_tail; 
 				    
 				    // calculate the available sectors
 				    if(log_head <= log_tail) 
@@ -148,6 +152,43 @@ public class LogStatus{
 	    	    logLock.unlock();
 	    }
     	    
+    }
+    
+    //Recover the next write transaction from the log
+    public byte[] recoverNext() throws IllegalArgumentException, IOException{
+    	byte[] result;
+    	try{
+            logLock.lock();
+	    	if(recovery_head == log_tail)
+	    		return null; 
+	    	byte[] nextHeader = new byte[Disk.SECTOR_SIZE];
+	        theDisk.d.startRequest(Disk.READ, Disk.SECTOR_SIZE, recovery_head, nextHeader);
+	        theDisk.logReadTid = Disk.SECTOR_SIZE;
+	        theDisk.logReadSector = recovery_head;
+	        theDisk.logReadWait();
+	    	
+	    	int nextLength = Transaction.parseHeader(nextHeader);
+	    	
+	    	result = new byte[Disk.SECTOR_SIZE * nextLength];
+	    	
+	    	byte[] tempByte = new byte[Disk.SECTOR_SIZE];
+	    	//Read in the transaction
+	    	for(int i = 0; i < (Disk.SECTOR_SIZE * nextLength); i++){
+	            theDisk.d.startRequest(Disk.READ, Disk.SECTOR_SIZE, recovery_head, tempByte);
+	            theDisk.logReadTid = Disk.SECTOR_SIZE;
+	            theDisk.logReadSector = recovery_head;
+	            theDisk.logReadWait();
+	            System.arraycopy(tempByte, 0, result, i*Disk.SECTOR_SIZE, Disk.SECTOR_SIZE);
+	            recovery_head++; 
+	            if(recovery_head > redo_log_size + redo_log_start)
+	            	recovery_head = redo_log_start; 
+	    	}
+    	}
+	    finally { 
+	        logLock.unlock();
+	    }
+        return result;
+    	 
     }
     
      // 
@@ -187,6 +228,9 @@ public class LogStatus{
     private void getHeadTail() throws IllegalArgumentException, IOException {
     	byte[] headerBlock = new byte[Disk.SECTOR_SIZE];
     	theDisk.getDisk().startRequest(Disk.READ, Disk.NUM_OF_SECTORS, head_location, headerBlock);
+        theDisk.logReadTid = Disk.NUM_OF_SECTORS;
+        theDisk.logReadSector = head_location;
+        theDisk.logReadWait();
     	
     	ByteBuffer b = ByteBuffer.allocate(Disk.SECTOR_SIZE);
     	b.put(headerBlock);
@@ -203,6 +247,9 @@ public class LogStatus{
 	           logLock.lock();
 				byte[] headerBlock = new byte[Disk.SECTOR_SIZE];
 				theDisk.getDisk().startRequest(Disk.READ, Disk.NUM_OF_SECTORS, head_location, headerBlock);
+		        theDisk.logReadTid = Disk.NUM_OF_SECTORS;
+		        theDisk.logReadSector = head_location;
+		        theDisk.logReadWait();
 				ByteBuffer b = ByteBuffer.allocate(Disk.SECTOR_SIZE);
 				b.put(headerBlock);   
 				temp =  b.getInt(0);
@@ -226,6 +273,9 @@ public class LogStatus{
 	           logLock.lock();
 				byte[] headerBlock = new byte[Disk.SECTOR_SIZE];
 				theDisk.getDisk().startRequest(Disk.READ, Disk.NUM_OF_SECTORS, head_location, headerBlock);
+		        theDisk.logReadTid = Disk.NUM_OF_SECTORS;
+		        theDisk.logReadSector = head_location;
+		        theDisk.logReadWait();
 				ByteBuffer b = ByteBuffer.allocate(Disk.SECTOR_SIZE);
 				b.put(headerBlock);   
 				temp =  b.getInt(4);

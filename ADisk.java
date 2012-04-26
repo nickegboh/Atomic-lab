@@ -27,6 +27,7 @@ public class ADisk implements DiskCallback{
   Condition commitDone;
   Condition writebackDone;
   Condition readDone;
+  Condition logReadDone;
   
   public int commitBarrierSector;
   public void setCBC(int i){ commitBarrierSector = i; }
@@ -35,6 +36,8 @@ public class ADisk implements DiskCallback{
   public int writebackBarrierTid;
   public int readSector;
   public int readTid;
+  public int logReadSector;
+  public int logReadTid;
   
   public Disk d;
   public ActiveTransactionList atranslist;
@@ -67,12 +70,15 @@ public class ADisk implements DiskCallback{
       commitDone = waitLock.newCondition();
       writebackDone = waitLock.newCondition();
       readDone = waitLock.newCondition();
+      logReadDone = waitLock.newCondition();
       commitBarrierSector = -1;
       commitBarrierTid = -1;
       writebackBarrierSector = -1;
       writebackBarrierTid = -1;
       readSector = -1;
       readTid = -1;
+      logReadSector = -1;
+      logReadTid = -1;
       
       if (format == true){
     	    lstatus = new LogStatus(this, false);
@@ -88,11 +94,11 @@ public class ADisk implements DiskCallback{
       else {
     	  //RECOVERY
     	  lstatus = new LogStatus(this, true);
-    	  byte[] curtrans = new byte[Disk.SECTOR_SIZE];
-    	  boolean next = lstatus.recoverNext(curtrans);
-          while(next){
-        	  Transaction temp = Transaction.parseLogBytesDebug(curtrans, this);
-        	  wblist.addCommitted(temp);	       	  
+    	  byte[] next = lstatus.recoverNext();
+          while(next != null){
+        	  Transaction temp = Transaction.parseLogBytesDebug(next, this);
+        	  wblist.addCommitted(temp);	 
+        	  next = lstatus.recoverNext();
           }     
       }
       
@@ -289,10 +295,19 @@ public class ADisk implements DiskCallback{
 		  	return;
 		}
 		
+		//check if this is a read request
 		if(result.getTag() == readTid && result.getSectorNum() == readSector && result.getOperation() == Disk.READ){
 		 	readSector = -1;
 		  	readTid = -1;
 		  	readDone.signal();
+		  	return;
+		}
+		
+		//check if this is a log read request
+		if(result.getTag() == logReadTid && result.getSectorNum() == logReadSector && result.getOperation() == Disk.READ){
+		 	logReadSector = -1;
+		  	logReadTid = -1;
+		  	logReadDone.signal();
 		  	return;
 		}
 	  
@@ -325,6 +340,21 @@ public class ADisk implements DiskCallback{
       waitLock.lock();
       while(readSector != -1){
     	  readDone.awaitUninterruptibly();
+      }
+      return;
+    }
+    finally{
+      waitLock.unlock();
+    }
+  }
+  
+  //function to wait for disk log 
+  public void logReadWait()
+  {
+    try{
+      waitLock.lock();
+      while(logReadSector != -1){
+    	  logReadDone.awaitUninterruptibly();
       }
       return;
     }
