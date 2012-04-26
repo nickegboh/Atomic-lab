@@ -316,7 +316,7 @@ public class ADisk implements DiskCallback{
 		}
 		
 		//check if this is a log read request
-		if(result.getTag() == logReadTid && result.getSectorNum() == logReadSector && result.getOperation() == Disk.READ){
+		if(result.getTag() == logReadTid && result.getSectorNum() == logReadSector){
 		 	logReadSector = -1;
 		  	logReadTid = -1;
 		  	logReadDone.signal();
