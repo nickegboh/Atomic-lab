@@ -1,12 +1,39 @@
-SECTION 1:
+SECTION 1:______
 
-Michael Janusa mjjanusa@yahoo.com          5_slip days
-Chinedu Egboh  tobe_egboh@mail.utexas.edu  5_slip days
+Michael Janusa mjjanusa@yahoo.com          5_slip days (With additional permission from Prof. Dahlin for extra time)
+Chinedu Egboh  tobe_egboh@mail.utexas.edu  5_slip days (With additional permission from Prof. Dahlin for extra time)
 
-SECTION 2:
+SECTION 2:______
 
-ADisk.java, ADiskTester.java, ActiveTransactionList.java, Transaction.java, TransID.java
+ActiveTransactionList.java: keeps a list of Transactions that have been started but not yet committed or aborted.
 
-SECTION 3:
+ADisk.java: This is the Atomic disk that that controls all other abstractions, namely the other classes listed as sources.
 
-SECTION 4:
+ADiskUnit.java: Is used to test all aspect of the project like, read, write to disk, read, write to sector, commit, recovery, transaction and more.
+
+LogStatus.java: Controls the entire redo log.  Keeps track of head and tail of the redo log.  Reserves space in the redo log.  Provides iterator like functions of the redo log for recovery reading an entire transaction into a byte array and returning it.  Processes writes to log. 
+
+Transaction.java: keeps the status of a transaction (INPROGRESS, COMMITTED, ABORTED), a list of writes for the transaction, and other information about the transaction.
+
+TransID.java: Is used to initialize and get transaction ID for a specific transaction or any given tranaction.
+
+WriteBackList.java: keeps a list of transactions that have committed but that have not yet been written back. It also controls the writebackthread.
+
+SECTION 3:_____
+Our high level design mostly followed the design outlined in the instructions using the same data structures and classes to organize transactions first in an activetransaction list and then move them to the writebacklist after being committed and finally be written to disk by a writeback thread.  Each instance of the datastructures (ADisk, ActiveTransactionList, LogStatus, WriteBackList) had its own lock to proctect its data structures that each public method aquired at the start of the method.  We also had a waitlock to control waiting for call backs with condition varables.  We had 5 different waits- each with differnt uses and seperate condition variables and control variables.  Basic premise is that before issuing a disk request the function would set the appropriate control variables to the tag and sector number it is issueing.  It would then call the appropriate wait function that waits for a signal from the right condition variable.  The call back function would signals control variables as it sees the appropriate tag/sector number combination come through as a diskresult.  The writeback thread is a seperate thread which loops through the writebacklist writing to disk then removing.  It terminates when the writeback list is empty.  The write back thread is started when adding a transaction to writeback list if the thread is not already active.  
+
+Recovery starts by setting the head and tail of log status from the disk to match  the head and tail before the crash. Log status implements an interface similar to an iterator that lets you read each transaction in the log in order returning a byte array.  Recovery takes each byte array and turns it into a transaction using parseLogBytes from transaction and adds the transaction to the writeback list.  After it has created all the transactions from the log ADisk resumes normal operation.  
+
+SECTION 4:_____
+We used a series of test to verify our code was working.
+
+Our first test was testonewriteTrans(), which we used to test a single write transaction.
+then we used this test "testmultiwriteTrans()" to for multiple write transaction, which then lead up to a single test commit with one TID "testSingleCommitWithOneTID()".
+After this we did a test with multiple wites and commits to with a single transaction.
+Eventually we had debugged enough of our code to test the read and TransID functions. 
+After much debugging we went on to harder tests like verifying Parselog, recovery, Adisk and writeback with these tests testParseLog(),ADiskTestbasic(), recoveryTestshort(), recovery(), writeBackTest(). 
+We decided to write a test (adiskTest()) that would test out a bunch of read, writes & commits to sector, then compare the content on the disk to make sure it was running ok.
+With the bigger tests we found out that we were having strange deadlocks that were inconsistent, but became more conistent after atleast 6 back to back runs of the program. But we found the bug and fixed it.
+		
+
+
