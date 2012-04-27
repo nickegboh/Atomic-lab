@@ -24,6 +24,8 @@ Our high level design mostly followed the design outlined in the instructions us
 
 Recovery starts by setting the head and tail of log status from the disk to match  the head and tail before the crash. Log status implements an interface similar to an iterator that lets you read each transaction in the log in order returning a byte array.  Recovery takes each byte array and turns it into a transaction using parseLogBytes from transaction and adds the transaction to the writeback list.  After it has created all the transactions from the log ADisk resumes normal operation.  
 
+Note: We wrote the code to wipe the disk if format is true, but we commented it out because it runs really slowly.
+
 SECTION 4:_____
 We used a series of test to verify our code was working.
 
