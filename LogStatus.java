@@ -162,9 +162,9 @@ public class LogStatus{
 	    	if(recovery_head == log_tail)
 	    		return null; 
 	    	byte[] nextHeader = new byte[Disk.SECTOR_SIZE];
-	        theDisk.d.startRequest(Disk.READ, Disk.SECTOR_SIZE, recovery_head, nextHeader);
 	        theDisk.logReadTid = Disk.SECTOR_SIZE;
 	        theDisk.logReadSector = recovery_head;
+	        theDisk.d.startRequest(Disk.READ, Disk.SECTOR_SIZE, recovery_head, nextHeader);
 	        theDisk.logReadWait();
 	    	
 	    	int nextLength = Transaction.parseHeader(nextHeader);
@@ -173,9 +173,9 @@ public class LogStatus{
 	    	byte[] tempByte = new byte[Disk.SECTOR_SIZE];
 	    	//Read in the transaction
 	    	for(int i = 0; i < nextLength; i++){
-	            theDisk.d.startRequest(Disk.READ, Disk.SECTOR_SIZE, recovery_head, tempByte);
 	            theDisk.logReadTid = Disk.SECTOR_SIZE;
 	            theDisk.logReadSector = recovery_head;
+	            theDisk.d.startRequest(Disk.READ, Disk.SECTOR_SIZE, recovery_head, tempByte);
 	            theDisk.logReadWait();
 	            System.arraycopy(tempByte, 0, result, i*Disk.SECTOR_SIZE, Disk.SECTOR_SIZE);
 	            recovery_head++; 
@@ -218,9 +218,9 @@ public class LogStatus{
         b.putInt(4, log_tail);
         byte[] headerBlock = b.array();
         
-        theDisk.getDisk().startRequest(Disk.WRITE, Disk.NUM_OF_SECTORS, head_location, headerBlock);
         theDisk.logReadTid = Disk.NUM_OF_SECTORS;
         theDisk.logReadSector = head_location;
+        theDisk.getDisk().startRequest(Disk.WRITE, Disk.NUM_OF_SECTORS, head_location, headerBlock);
         theDisk.logReadWait();
         
         return; 
@@ -229,9 +229,9 @@ public class LogStatus{
     //Set the head tail variables from the variables on disk 
     private void getHeadTail() throws IllegalArgumentException, IOException {
     	byte[] headerBlock = new byte[Disk.SECTOR_SIZE];
-    	theDisk.getDisk().startRequest(Disk.READ, Disk.NUM_OF_SECTORS, head_location, headerBlock);
         theDisk.logReadTid = Disk.NUM_OF_SECTORS;
         theDisk.logReadSector = head_location;
+    	theDisk.getDisk().startRequest(Disk.READ, Disk.NUM_OF_SECTORS, head_location, headerBlock);
         theDisk.logReadWait();
     	
     	ByteBuffer b = ByteBuffer.allocate(Disk.SECTOR_SIZE);
@@ -248,9 +248,9 @@ public class LogStatus{
 		    try{
 	           logLock.lock();
 				byte[] headerBlock = new byte[Disk.SECTOR_SIZE];
-				theDisk.getDisk().startRequest(Disk.READ, Disk.NUM_OF_SECTORS, head_location, headerBlock);
 		        theDisk.logReadTid = Disk.NUM_OF_SECTORS;
 		        theDisk.logReadSector = head_location;
+				theDisk.getDisk().startRequest(Disk.READ, Disk.NUM_OF_SECTORS, head_location, headerBlock);
 		        theDisk.logReadWait();
 				ByteBuffer b = ByteBuffer.allocate(Disk.SECTOR_SIZE);
 				b.put(headerBlock);   
@@ -274,9 +274,9 @@ public class LogStatus{
 		    try{
 	           logLock.lock();
 				byte[] headerBlock = new byte[Disk.SECTOR_SIZE];
-				theDisk.getDisk().startRequest(Disk.READ, Disk.NUM_OF_SECTORS, head_location, headerBlock);
 		        theDisk.logReadTid = Disk.NUM_OF_SECTORS;
 		        theDisk.logReadSector = head_location;
+				theDisk.getDisk().startRequest(Disk.READ, Disk.NUM_OF_SECTORS, head_location, headerBlock);
 		        theDisk.logReadWait();
 				ByteBuffer b = ByteBuffer.allocate(Disk.SECTOR_SIZE);
 				b.put(headerBlock);   

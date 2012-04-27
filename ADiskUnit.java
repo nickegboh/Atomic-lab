@@ -694,7 +694,6 @@ public class ADiskUnit {
 			  pass = false; 
 			  System.out.println("Test Write Back: Failed to maintain queue");
 		  }
-		  
 		  disk.readSector(temp1, disk.getNSectors()-1, datret);
 		  if(!SectorCheck(dat2, datret)){
 			  pass = false; 
@@ -712,7 +711,6 @@ public class ADiskUnit {
 				  System.out.println("Test Write Back: Failed large consecutive read from disk only");
 			  }
 		  }
-		  
 		  disk.readSectorDiskOnly(temp1, 0, datret);
 		  if(!SectorCheck(dat4, datret)){
 			  pass = false; 
@@ -724,7 +722,6 @@ public class ADiskUnit {
 			  pass = false; 
 			  System.out.println("Test Write Back: Failed write reading from disk only");
 		  }
-		  
 		  
 		  if(pass)
 			  System.out.println("Test Write Back: Passed!");

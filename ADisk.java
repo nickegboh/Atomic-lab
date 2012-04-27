@@ -28,7 +28,6 @@ public class ADisk implements DiskCallback{
   Condition writebackDone;
   Condition readDone;
   Condition logReadDone;
-  Condition wbitem;
   Condition wbbarrier;
   
   public int commitBarrierSector;
@@ -63,7 +62,7 @@ public class ADisk implements DiskCallback{
   // and redo any committed transactions. 
   //
   //-------------------------------------------------------
-  public ADisk(boolean format) throws IllegalArgumentException, IOException// Not done yet
+  public ADisk(boolean format)
   {  
 	  // build lock
 	  this.setFailureProb(0);
@@ -99,19 +98,30 @@ public class ADisk implements DiskCallback{
 	  
 	  //create writeback thread
 	  writebackthread = new WriteBackThread();
-      
-      if (format == true){
-    	    lstatus = new LogStatus(this, false);
-      } 
-      else {
-    	  //RECOVERY
-    	  lstatus = new LogStatus(this, true);
-    	  byte[] next = lstatus.recoverNext();
-          while(next != null){
-        	  Transaction temp = Transaction.parseLogBytesDebug(next, this);
-        	  wblist.addCommitted(temp);	 
-        	  next = lstatus.recoverNext();
-          }     
+      try {
+	      if (format == true){
+	    	    lstatus = new LogStatus(this, false);
+	      } 
+	      else {
+	    	  //RECOVERY
+	    	  lstatus = new LogStatus(this, true);
+	    	  byte[] next = lstatus.recoverNext();
+	          while(next != null){
+	        	  Transaction temp = Transaction.parseLogBytesDebug(next, this);
+	        	  wblist.addCommitted(temp);	 
+	        	  next = lstatus.recoverNext();
+	          }     
+	      }
+      }
+      catch(IOException e){
+			System.out.println("IO exception");
+			e.printStackTrace();
+			System.exit(-1);
+      }
+      catch(IllegalArgumentException e){
+			System.out.println("Illegal Argument exception");
+			e.printStackTrace();
+			System.exit(-1);
       }
       
   }
@@ -134,7 +144,7 @@ public class ADisk implements DiskCallback{
   // Begin a new transaction and return a transaction ID
   //
   //-------------------------------------------------------
-  public TransID beginTransaction()// Not done yet
+  public TransID beginTransaction()
   {
 	  //TransID tid = new TransID();
 	  Transaction collect_trans = new Transaction(this);
@@ -200,9 +210,16 @@ public class ADisk implements DiskCallback{
   // to an active transaction.
   // 
   //-------------------------------------------------------
-  public void abortTransaction(TransID tid) throws IllegalArgumentException, IOException{//done
+  public void abortTransaction(TransID tid) throws IllegalArgumentException {//done
 	// Check that this is actually an active transaction
-      atranslist.get(tid).abort();
+      try {
+		atranslist.get(tid).abort();
+	} catch (IOException e) {
+		// TODO Auto-generated catch block
+		System.out.println("IO exception");
+		e.printStackTrace();
+		System.exit(-1);
+	}
       atranslist.remove(tid);
   }
 
@@ -235,9 +252,9 @@ public class ADisk implements DiskCallback{
 	  try{
 		  ADisk_lock.lock();
 
-          d.startRequest(Disk.READ, tid.getTidfromTransID(), sectorNum, buffer);
-          readTid = tid.getTidfromTransID();
+		  readTid = tid.getTidfromTransID();
           readSector = sectorNum;
+          d.startRequest(Disk.READ, tid.getTidfromTransID(), sectorNum, buffer);
           readWait();
           
           wblist.checkRead(sectorNum, buffer);
@@ -259,9 +276,9 @@ public class ADisk implements DiskCallback{
 	  try{
 		  ADisk_lock.lock();
 
+	    readTid = tid.getTidfromTransID();
+	    readSector = sectorNum;
         d.startRequest(Disk.READ, tid.getTidfromTransID(), sectorNum, buffer);
-        readTid = tid.getTidfromTransID();
-        readSector = sectorNum;
         readWait();
 	  }
 	  finally{
@@ -333,7 +350,7 @@ public class ADisk implements DiskCallback{
 		  	readDone.signal();
 		  	return;
 		}
-		
+				
 		//check if this is a log read request
 		if(result.getTag() == logReadTid && result.getSectorNum() == logReadSector){
 		 	logReadSector = -1;
@@ -416,23 +433,6 @@ public class ADisk implements DiskCallback{
       waitLock.unlock();
     }
   }
-  
-  //function to wait for disk log 
-  public void writebackWait()
-  {
-    try{
-      waitLock.lock();
-      while(wblist.getNextWriteback() == null){
-    	  System.out.println("working");
-    	  wbitem.awaitUninterruptibly();
-      }
-      return;
-    }
-    finally{
-      waitLock.unlock();
-    }
-  }
-  
 
 //Writeback thread!
  public class WriteBackThread extends Thread {
@@ -441,16 +441,15 @@ public class ADisk implements DiskCallback{
        Transaction temp;
     	   temp = wblist.getNextWriteback();
     	   while(temp != null){
-    		   //System.out.println("Working");
     		  //write next transaction to disk.
     		  int nsects = temp.getNUpdatedSectors();
     		  byte[] towrite = new byte[Disk.SECTOR_SIZE];
     		  for(int i = 0; i < nsects; i++){
     			  int secNum = temp.getUpdateI(i, towrite);
     			  //System.out.println("towrite[0] " + (char)towrite[0] + " secnum: " + secNum);
-    			  theDisk.d.startRequest(Disk.WRITE, Disk.NUM_OF_SECTORS+5, secNum, towrite);
     			  wbbarrierTag = Disk.NUM_OF_SECTORS+5;
 			  	  wbbarrierSec = secNum;
+    			  theDisk.d.startRequest(Disk.WRITE, Disk.NUM_OF_SECTORS+5, secNum, towrite);
 			  	  wbbarrierWait();			  	  
     			  /*if(i == (nsects-1)){
     				  //add barrier because can not remove from writeback list until all sectors written to disk. 
