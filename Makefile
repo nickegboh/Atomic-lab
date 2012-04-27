@@ -33,6 +33,9 @@ $(CLASSES): $(JAVA_SRCS)
 clean:
 	/bin/rm -f $(CLASSES) *~
 
+unit:
+	java ADiskUnit
+
 handin-1: handin.tar
 	echo "FIX MAKEFILE TO INCLUDE THE TA user ID for the cs machines"
 	echo "Turning in handin.tar containing the following files:"
