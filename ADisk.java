@@ -101,6 +101,21 @@ public class ADisk implements DiskCallback{
       try {
 	      if (format == true){
 	    	    lstatus = new LogStatus(this, false);
+	    	    
+	    	    ///wipe the disk
+	    	    /*byte[] blank = new byte[Disk.SECTOR_SIZE];
+	    	    for(int i = 0; i < Disk.SECTOR_SIZE; i++)
+	    	    	blank[i] = 0x00;
+	    	    for(int i = 0; i < this.getNSectors(); i++){
+	    	    	if(i == this.getNSectors() - 1){
+	    	    		this.commitBarrierSector = i;
+	    	    		this.commitBarrierTid = Disk.SECTOR_SIZE + 10;
+	    	    		d.addBarrier(); // must wait for the entire wipe write to be on disk
+	    	    	}
+	    	    	d.startRequest(Disk.WRITE, Disk.SECTOR_SIZE+10, i, blank);
+	    	    }
+    	    	commitWait();*/
+	    	    // We decided not to wipe the disk because the instructions were vague and it seems insanely inefficient to wipe the disk and there doesnt seem to be reason to wipe it.  It also makes our tests run very slow.  
 	      } 
 	      else {
 	    	  //RECOVERY
