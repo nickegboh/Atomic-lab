@@ -253,14 +253,5 @@ public class PTree{
   
 }
 
-public class freeBitMap {
-	byte[] bitmap; 
-	int sectorCount; 
-	
-	public freeBitMap(int numSecs){	
-	
-	}
-	
-	
-}
+
 
