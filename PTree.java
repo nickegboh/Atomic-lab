@@ -33,7 +33,7 @@ public class PTree{
   
   public ADisk d;
   public TransID tid;
-  SimpleLock ADisk_lock;
+  SimpleLock Ptree_lock;
 
 
   /* This function is the constructor. If doFormat == false, data stored 
@@ -42,7 +42,7 @@ public class PTree{
    */
   public PTree(boolean doFormat)						//TODO
   {
-	  ADisk_lock = new SimpleLock();	//mutex lock
+	  Ptree_lock = new SimpleLock();	//mutex lock
 	  d = new ADisk(doFormat);
 
 	  if(doFormat == true){
@@ -87,11 +87,11 @@ public class PTree{
   {
 	  int TNum = 0;
 	  try{
-		  ADisk_lock.lock();
+		  Ptree_lock.lock();
 		  
 	  }
 	  finally{
-		  ADisk_lock.unlock();
+		  Ptree_lock.unlock();
 	  }
     return TNum;
   }
@@ -104,11 +104,11 @@ public class PTree{
     throws IOException, IllegalArgumentException
   {
 	  try{
-		  ADisk_lock.lock();
+		  Ptree_lock.lock();
 		  
 	  }
 	  finally{
-		  ADisk_lock.unlock();
+		  Ptree_lock.unlock();
 	  }
   }
 
@@ -130,11 +130,11 @@ public class PTree{
     throws IOException, IllegalArgumentException	//TODO
   {
 	  try{
-		  ADisk_lock.lock();
+		  Ptree_lock.lock();
 		  
 	  }
 	  finally{
-		  ADisk_lock.unlock();
+		  Ptree_lock.unlock();
 	  }
   }
 
@@ -150,11 +150,11 @@ public class PTree{
     throws IOException, IllegalArgumentException	//TODO
   {
 	  try{
-		  ADisk_lock.lock();
+		  Ptree_lock.lock();
 		  
 	  }
 	  finally{
-		  ADisk_lock.unlock();
+		  Ptree_lock.unlock();
 	  }
   }
 
@@ -167,11 +167,11 @@ public class PTree{
     throws IOException, IllegalArgumentException	//TODO
   {
 	  try{
-		  ADisk_lock.lock();
+		  Ptree_lock.lock();
 		  
 	  }
 	  finally{
-		  ADisk_lock.unlock();
+		  Ptree_lock.unlock();
 	  }
   }
 
@@ -183,11 +183,11 @@ public class PTree{
     throws IOException, IllegalArgumentException	//TODO
   {
 	  try{
-		  ADisk_lock.lock();
+		  Ptree_lock.lock();
 		  
 	  }
 	  finally{
-		  ADisk_lock.unlock();
+		  Ptree_lock.unlock();
 	  }
   }
   
@@ -202,7 +202,29 @@ public class PTree{
   public int getParam(int param)					//TODO
     throws IOException, IllegalArgumentException
   {
-    return -1;
+	  try {
+		  Ptree_lock.lock();
+          if (param == ASK_FREE_SPACE) {
+              //free blocks * bytes per block
+              return numFreeBlocks() * BLOCK_SIZE_BYTES;
+          } else if (param == ASK_FREE_TREES) {
+              //check the TNum list
+              int count = 0;
+              for (int i = 0; i < treeIDs.length; i++) {
+                  if (!treeIDs[i]) {
+                      count++;
+                  }
+              }
+              return count;
+
+          } else if (param == ASK_MAX_TREES) {
+              return MAX_TREES;
+          } else {
+              throw new IllegalArgumentException("Illegal Argument Exception.");
+          }
+      } finally {
+          Ptree_lock.unlock();
+      }
   }
 
   
