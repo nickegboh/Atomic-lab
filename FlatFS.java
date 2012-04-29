@@ -16,14 +16,22 @@ public class FlatFS{
   public static final int ASK_FREE_SPACE_BLOCKS = 29542;
   public static final int ASK_FREE_FILES = 29545;
   public static final int ASK_FILE_METADATA_SIZE = 3502;
+  
+  public ADisk d;
+  public TransID tid;
 
   /* This function is the constructor. If doFormat == false, data 
    * stored in previous sessions must remain stored. If doFormat == true, 
    * the system should initialize the underlying disk to empty. 
    */
-  public FlatFS(boolean doFormat)
-    throws IOException
+  public FlatFS(boolean doFormat)throws IOException
   {
+	  if(doFormat == true){
+		  
+	  }
+	  else{
+		  
+	  }
   }
 
   /* This function begins a new transaction and returns an 
@@ -31,7 +39,7 @@ public class FlatFS{
    */
   public TransID beginTrans()
   {
-    return null;
+    return d.beginTransaction();
   }
 
   /* This function commits the specified transaction. 
@@ -39,6 +47,7 @@ public class FlatFS{
   public void commitTrans(TransID xid)
     throws IOException, IllegalArgumentException
   {
+	  d.commitTransaction(xid);
   }
 
   /* This function aborts the specified transaction.  
@@ -46,6 +55,7 @@ public class FlatFS{
   public void abortTrans(TransID xid)
     throws IOException, IllegalArgumentException
   {
+	  d.abortTransaction(xid);
   }
 
   /* This function creates a new file and returns the 

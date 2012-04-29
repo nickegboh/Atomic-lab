@@ -10,6 +10,7 @@
 
 import java.io.IOException;
 import java.io.EOFException;
+import java.util.concurrent.locks.Condition;
 
 public class PTree{
   public static final int METADATA_SIZE = 64;
@@ -29,6 +30,11 @@ public class PTree{
   public static final int TNODE_POINTERS = 8;
   public static final int BLOCK_SIZE_BYTES = 1024;
   public static final int POINTERS_PER_INTERNAL_NODE = 256;
+  
+  public ADisk d;
+  public TransID tid;
+  SimpleLock ADisk_lock;
+
 
   /* This function is the constructor. If doFormat == false, data stored 
    * in previous sessions must remain stored. If doFormat == true, the 
@@ -36,6 +42,15 @@ public class PTree{
    */
   public PTree(boolean doFormat)
   {
+	  ADisk_lock = new SimpleLock();	//mutex lock
+	  d = new ADisk(doFormat);
+
+	  if(doFormat == true){
+		  
+	  }
+	  else{
+		  
+	  }
   }
 
   /* This function begins a new transaction and returns 
@@ -43,7 +58,7 @@ public class PTree{
    */
   public TransID beginTrans()
   {
-    return null;
+    return d.beginTransaction();
   }
 
   /*
@@ -52,6 +67,7 @@ public class PTree{
   public void commitTrans(TransID xid) 
     throws IOException, IllegalArgumentException
   {
+	  d.commitTransaction(xid);
   }
 
   /* 
@@ -60,6 +76,7 @@ public class PTree{
   public void abortTrans(TransID xid) 
     throws IOException, IllegalArgumentException
   {
+	  d.abortTransaction(xid);
   }
 
   /* This function creates a new tree and returns the 
@@ -68,7 +85,15 @@ public class PTree{
   public int createTree(TransID xid) 
     throws IOException, IllegalArgumentException, ResourceException
   {
-    return -1;
+	  int TNum = 0;
+	  try{
+		  ADisk_lock.lock();
+		  
+	  }
+	  finally{
+		  ADisk_lock.unlock();
+	  }
+    return TNum;
   }
 
   /* This function removes the tree specified by the tree  
@@ -78,6 +103,13 @@ public class PTree{
   public void deleteTree(TransID xid, int tnum) 
     throws IOException, IllegalArgumentException
   {
+	  try{
+		  ADisk_lock.lock();
+		  
+	  }
+	  finally{
+		  ADisk_lock.unlock();
+	  }
   }
 
   /* This function returns the maximum ID of any data block  
@@ -97,6 +129,13 @@ public class PTree{
   public void readData(TransID xid, int tnum, int blockId, byte buffer[])
     throws IOException, IllegalArgumentException
   {
+	  try{
+		  ADisk_lock.lock();
+		  
+	  }
+	  finally{
+		  ADisk_lock.unlock();
+	  }
   }
 
   /* This function writes PTREE.BLOCK_SIZE_BYTES bytes from the buffer specified 
@@ -110,6 +149,13 @@ public class PTree{
   public void writeData(TransID xid, int tnum, int blockId, byte buffer[])
     throws IOException, IllegalArgumentException
   {
+	  try{
+		  ADisk_lock.lock();
+		  
+	  }
+	  finally{
+		  ADisk_lock.unlock();
+	  }
   }
 
   /* This function reads PTree.METADATA_SIZE bytes of per-tree metadata for tree tnum 
@@ -120,6 +166,13 @@ public class PTree{
   public void readTreeMetadata(TransID xid, int tnum, byte buffer[])
     throws IOException, IllegalArgumentException
   {
+	  try{
+		  ADisk_lock.lock();
+		  
+	  }
+	  finally{
+		  ADisk_lock.unlock();
+	  }
   }
 
 
@@ -129,6 +182,13 @@ public class PTree{
   public void writeTreeMetadata(TransID xid, int tnum, byte buffer[])
     throws IOException, IllegalArgumentException
   {
+	  try{
+		  ADisk_lock.lock();
+		  
+	  }
+	  finally{
+		  ADisk_lock.unlock();
+	  }
   }
   
   /* This function allows applications to get parameters of the persistent tree 
