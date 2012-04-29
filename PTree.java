@@ -40,7 +40,7 @@ public class PTree{
    * in previous sessions must remain stored. If doFormat == true, the 
    * system should initialize the underlying disk to empty. 
    */
-  public PTree(boolean doFormat)
+  public PTree(boolean doFormat)						//TODO
   {
 	  ADisk_lock = new SimpleLock();	//mutex lock
 	  d = new ADisk(doFormat);
@@ -82,7 +82,7 @@ public class PTree{
   /* This function creates a new tree and returns the 
    * TNum number (a unique identifier for the tree). 
    */
-  public int createTree(TransID xid) 
+  public int createTree(TransID xid) 				//TODO
     throws IOException, IllegalArgumentException, ResourceException
   {
 	  int TNum = 0;
@@ -100,7 +100,7 @@ public class PTree{
    * number tnum. The tree is deleted and the corresponding 
    * resources are reclaimed.
    */
-  public void deleteTree(TransID xid, int tnum) 
+  public void deleteTree(TransID xid, int tnum) 	//TODO
     throws IOException, IllegalArgumentException
   {
 	  try{
@@ -116,7 +116,7 @@ public class PTree{
    * stored in the specified tree. Note that blocks in a 
    * tree are numbered starting from 0.
    */
-  public void getMaxDataBlockId(TransID xid, int tnum)
+  public void getMaxDataBlockId(TransID xid, int tnum)//TODO
     throws IOException, IllegalArgumentException
   {
   }
@@ -127,7 +127,7 @@ public class PTree{
    * function should fill *buffer with '\0' values.
    */
   public void readData(TransID xid, int tnum, int blockId, byte buffer[])
-    throws IOException, IllegalArgumentException
+    throws IOException, IllegalArgumentException	//TODO
   {
 	  try{
 		  ADisk_lock.lock();
@@ -147,7 +147,7 @@ public class PTree{
    * updates must be done atomically within the transaction. 
    */
   public void writeData(TransID xid, int tnum, int blockId, byte buffer[])
-    throws IOException, IllegalArgumentException
+    throws IOException, IllegalArgumentException	//TODO
   {
 	  try{
 		  ADisk_lock.lock();
@@ -164,7 +164,7 @@ public class PTree{
    * associated with a given tree. 
    */
   public void readTreeMetadata(TransID xid, int tnum, byte buffer[])
-    throws IOException, IllegalArgumentException
+    throws IOException, IllegalArgumentException	//TODO
   {
 	  try{
 		  ADisk_lock.lock();
@@ -180,7 +180,7 @@ public class PTree{
    * tree tnum from the buffer beginning at buffer.
    */
   public void writeTreeMetadata(TransID xid, int tnum, byte buffer[])
-    throws IOException, IllegalArgumentException
+    throws IOException, IllegalArgumentException	//TODO
   {
 	  try{
 		  ADisk_lock.lock();
@@ -199,7 +199,7 @@ public class PTree{
    * integer answer to the question or throws IllegalArgumentException if param 
    * does not correspond to one of these value.. 
    */
-  public int getParam(int param)
+  public int getParam(int param)					//TODO
     throws IOException, IllegalArgumentException
   {
     return -1;

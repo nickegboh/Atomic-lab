@@ -17,14 +17,14 @@ public class FlatFS{
   public static final int ASK_FREE_FILES = 29545;
   public static final int ASK_FILE_METADATA_SIZE = 3502;
   
-  public ADisk d;
+  public PTree ptree;
   public TransID tid;
 
   /* This function is the constructor. If doFormat == false, data 
    * stored in previous sessions must remain stored. If doFormat == true, 
    * the system should initialize the underlying disk to empty. 
    */
-  public FlatFS(boolean doFormat)throws IOException
+  public FlatFS(boolean doFormat)throws IOException		//TODO
   {
 	  if(doFormat == true){
 		  
@@ -39,7 +39,7 @@ public class FlatFS{
    */
   public TransID beginTrans()
   {
-    return d.beginTransaction();
+    return ptree.beginTrans();
   }
 
   /* This function commits the specified transaction. 
@@ -47,7 +47,7 @@ public class FlatFS{
   public void commitTrans(TransID xid)
     throws IOException, IllegalArgumentException
   {
-	  d.commitTransaction(xid);
+	  ptree.commitTrans(xid);
   }
 
   /* This function aborts the specified transaction.  
@@ -55,14 +55,14 @@ public class FlatFS{
   public void abortTrans(TransID xid)
     throws IOException, IllegalArgumentException
   {
-	  d.abortTransaction(xid);
+	  ptree.abortTrans(xid);
   }
 
   /* This function creates a new file and returns the 
    * inode number (a unique identifier for the file) 
    */
   public int createFile(TransID xid)
-    throws IOException, IllegalArgumentException
+    throws IOException, IllegalArgumentException		//TODO
   {
     return -1;
   }
@@ -72,7 +72,7 @@ public class FlatFS{
    * corresponding resources are reclaimed. 
    */
   public void deleteFile(TransID xid, int inumber)
-    throws IOException, IllegalArgumentException
+    throws IOException, IllegalArgumentException		//TODO
   {
   }
 
@@ -84,7 +84,7 @@ public class FlatFS{
    * the end of the file.
    */
   public int read(TransID xid, int inumber, int offset, int count, byte buffer[])
-    throws IOException, IllegalArgumentException, EOFException
+    throws IOException, IllegalArgumentException, EOFException	//TODO
   {
     return -1;
   }
@@ -95,7 +95,7 @@ public class FlatFS{
    * file should extend the size of the file to accommodate the new data. 
    */
   public void write(TransID xid, int inumber, int offset, int count, byte buffer[])
-    throws IOException, IllegalArgumentException
+    throws IOException, IllegalArgumentException			//TODO
   {
   }
   
@@ -105,8 +105,9 @@ public class FlatFS{
    * state associated with a given file. 
    */
   public void readFileMetadata(TransID xid, int inumber, byte buffer[])
-    throws IOException, IllegalArgumentException
+    throws IOException, IllegalArgumentException		
   {
+	  ptree.readTreeMetadata(xid, inumber, buffer);
   }
 
   /* This function writes getParam(ASK_FILE_METADATA_SIZE) bytes of per-file metadata 
@@ -115,6 +116,7 @@ public class FlatFS{
   public void writeFileMetadata(TransID xid, int inumber, byte buffer[])
     throws IOException, IllegalArgumentException
   {
+	  ptree.writeTreeMetadata(xid, inumber, buffer);
   }
 
   /* This function allows applications to get parameters of the file system. The parameter 
@@ -124,7 +126,7 @@ public class FlatFS{
    * currently has), and FlatFS.ASK_FILE_METADATA_SIZE (to ask how much space there is for 
    * per-file metadata).  It returns an integer answer to the question
    */
-  public int getParam(int param)
+  public int getParam(int param)							//TODO
     throws IOException, IllegalArgumentException
   {
     return -1;
