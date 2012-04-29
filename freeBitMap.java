@@ -2,9 +2,11 @@ public class freeBitMap {
 	byte[] bitmap; 
 	int sectorCount; //num sectors monitored by free bit map
 	int reserveSectors;  //num sectors needed to save free bit map
+	int freesectors; 
 	
 	public freeBitMap(int numSecs){	
-		sectorCount = numSecs; 
+		sectorCount = numSecs;
+		freesectors = numSecs; 
 		int reserveSectors = sectorCount / (8 * Disk.SECTOR_SIZE); 
 		if(sectorCount % (8 * Disk.SECTOR_SIZE) != 0)
 			reserveSectors++;
@@ -17,12 +19,27 @@ public class freeBitMap {
 		sectorCount  = numSecs;
 		reserveSectors = bitMapIn.length / Disk.SECTOR_SIZE;
 		bitmap = bitMapIn; 
+		freesectors = 0; 
+		for(int i = 0; i < (sectorCount / 8); i++) 
+				for(int j = 0; j < 8; j++){
+					if(((0x80 >> j) & bitmap[i]) != 0)
+						freesectors++;
+				}
+			
 	}
 	
 	public void markFull(int sectorNum){
 		int row = sectorNum / 8; 
 		int col = sectorNum % 8; 
 		byte bitMask = (byte)(0x80 >> col);  
+		bitmap[row] = (byte) (bitmap[row] | bitMask);
+	}
+	
+	public void markEmpty(int sectorNum){
+		int row = sectorNum / 8; 
+		int col = sectorNum % 8; 
+		byte bitMask = (byte)(0x80 >> col);  
+		bitMask = (byte) ~bitMask;
 		bitmap[row] = (byte) (bitmap[row] & bitMask);
 	}
 	
@@ -52,6 +69,10 @@ public class freeBitMap {
 	
 	public int getNumSectorsforWrite(){
 		return reserveSectors; 
+	}
+	
+	public int getFreeSectors(){
+		return freesectors; 
 	}
 	
 }

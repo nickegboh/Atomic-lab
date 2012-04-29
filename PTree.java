@@ -201,7 +201,7 @@ public class PTree{
 		  //generate and fill TNode byte
 		  ByteBuffer b = ByteBuffer.allocate(Disk.SECTOR_SIZE);
 		  b.putInt(TNum); // put tnode number at top of tnode sector
-		  b.putInt(1); //put tree height
+		  b.putInt(0); //put tree max seen id
 		  //reserve space for meta data 
 		  for(int i = 0; i < (this.METADATA_SIZE / 8); i++)
 			  b.putChar((char)0x00);
@@ -238,15 +238,6 @@ public class PTree{
 	  }
   }
 
-  /* This function returns the maximum ID of any data block  
-   * stored in the specified tree. Note that blocks in a 
-   * tree are numbered starting from 0.
-   */
-  public void getMaxDataBlockId(TransID xid, int tnum)//TODO
-    throws IOException, IllegalArgumentException
-  {
-  }
-
   /* This function reads PTree.BLOCK_SIZE_BYTES bytes from the blockId'th 
    * block of data in the tree specified by tnum into the buffer specified 
    * by buffer.  If the specified block does not exist in the tree, the 
@@ -277,6 +268,8 @@ public class PTree{
   {
 	  try{
 		  Ptree_lock.lock();
+		  //calculate height
+		  
 		  
 	  }
 	  finally{
@@ -321,6 +314,60 @@ public class PTree{
 	  finally{
 		  Ptree_lock.unlock();
 	  }
+  }
+  
+  /* This function reads PTree.METADATA_SIZE bytes of per-tree metadata for tree tnum 
+   * and stores this data in the buffer beginning at buffer. This per-tree metadata 
+   * is an uninterpreted array of bytes that higher-level code may use to store state 
+   * associated with a given tree. 
+   */
+  public int getMaxDataBlockId(TransID xid, int tnum) throws IllegalArgumentException, IndexOutOfBoundsException, IOException  {
+	  int MaxDataBlockId = 0;
+	  try{
+		  Ptree_lock.lock();
+		  int TnodeSector = getTnodePointer(xid, tnum);
+		  byte[] temp = new byte[Disk.SECTOR_SIZE];
+		  byte[] buffer = new byte[4];
+		  d.readSector(xid, TnodeSector, temp);
+		  System.arraycopy(temp, 4, buffer, 0, 4);
+		  MaxDataBlockId = byteArraytoInt(buffer);
+	  }
+	  finally{
+		  Ptree_lock.unlock();
+	  }
+	  return MaxDataBlockId; 
+  }
+
+
+  /* This function writes PTree.METADATA_SIZE bytes of per-tree metadata for 
+   * tree tnum from the buffer beginning at buffer.
+   */
+  public void updateMaxDataBlockId(TransID xid, int tnum, int newMaxBlockId) throws IllegalArgumentException, IndexOutOfBoundsException, IOException
+  {
+	  try{
+		  Ptree_lock.lock();
+		  int TnodeSector = getTnodePointer(xid, tnum);
+		  byte[] buffer = intToByteArray(newMaxBlockId);
+		  byte[] temp = new byte[Disk.SECTOR_SIZE];
+		  d.readSector(xid, TnodeSector, temp);
+		  System.arraycopy(buffer, 0, temp, 4, 4);		  
+	  }
+	  finally{
+		  Ptree_lock.unlock();
+	  }
+  }
+  
+  public int getHeight(int maxDataBlockId){
+	  int height = 0;
+	  if(maxDataBlockId < TNODE_POINTERS)
+		  height = 1;
+	  else{
+	  int i = 1;
+	  while(maxDataBlockId >= (TNODE_POINTERS * Math.pow(POINTERS_PER_INTERNAL_NODE, i)))
+		  i++;
+	  height = i+1;
+	  }
+	  return height; 		  
   }
   
   /* This function allows applications to get parameters of the persistent tree 
