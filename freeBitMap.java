@@ -46,4 +46,12 @@ public class freeBitMap {
 		return -1; 
 	}
 	
+	public byte[] getSectorsforWrite(){
+		return bitmap; 
+	}
+	
+	public int getNumSectorsforWrite(){
+		return reserveSectors; 
+	}
+	
 }
