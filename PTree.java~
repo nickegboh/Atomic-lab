@@ -34,7 +34,6 @@ public class PTree{
   public ADisk d;
   public TransID tid;
   SimpleLock Ptree_lock;
-  Condition noActiveTrans;
 
 
   /* This function is the constructor. If doFormat == false, data stored 
@@ -44,7 +43,6 @@ public class PTree{
   public PTree(boolean doFormat)						//TODO
   {
 	  Ptree_lock = new SimpleLock();	//mutex lock
-	  noActiveTrans = Ptree_lock.newCondition();
 	  d = new ADisk(doFormat);
 
 	  if(doFormat == true){
@@ -60,16 +58,7 @@ public class PTree{
    */
   public TransID beginTrans()
   {
-	TransID returnTID; 
-	try{
-	  Ptree_lock.lock();
-	  while(d.atranslist.size() > 0)
-		  noActiveTrans.awaitUninterruptibly();
-	  returnTID = d.beginTransaction();
-	} finally {
-        Ptree_lock.unlock();
-    }
-	return returnTID; 
+    return d.beginTransaction();
   }
 
   /*
@@ -78,13 +67,7 @@ public class PTree{
   public void commitTrans(TransID xid) 
     throws IOException, IllegalArgumentException
   {
-	try{
-	  Ptree_lock.lock();
 	  d.commitTransaction(xid);
-	  noActiveTrans.signalAll();
-	} finally {
-        Ptree_lock.unlock();
-    }	
   }
 
   /* 
@@ -93,13 +76,7 @@ public class PTree{
   public void abortTrans(TransID xid) 
     throws IOException, IllegalArgumentException
   {
-	try{
-		Ptree_lock.lock();
-		  d.abortTransaction(xid);
-		  noActiveTrans.signalAll();
-	} finally {
-	      Ptree_lock.unlock();
-    }
+	  d.abortTransaction(xid);
   }
 
   /* This function creates a new tree and returns the 
@@ -252,4 +229,3 @@ public class PTree{
 
   
 }
-
