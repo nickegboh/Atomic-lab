@@ -10,6 +10,7 @@
 
 import java.io.IOException;
 import java.io.EOFException;
+import java.nio.ByteBuffer;
 import java.util.concurrent.locks.Condition;
 
 public class PTree{
@@ -33,6 +34,11 @@ public class PTree{
   
   public ADisk d;
   public TransID tid;
+  public freeBitMap freeSectors;
+  public int treeCount;
+  public int currentTNodeListI;
+  public byte[] currentTNodeList;
+  int TnodeListSectors;
   SimpleLock Ptree_lock;
   Condition noActiveTrans;
 
@@ -41,17 +47,83 @@ public class PTree{
    * in previous sessions must remain stored. If doFormat == true, the 
    * system should initialize the underlying disk to empty. 
    */
-  public PTree(boolean doFormat)						//TODO
+  public PTree(boolean doFormat) throws IllegalArgumentException, IOException						//TODO
   {
 	  Ptree_lock = new SimpleLock();	//mutex lock
 	  noActiveTrans = Ptree_lock.newCondition();
 	  d = new ADisk(doFormat);
+	  treeCount = 0; 
 
 	  if(doFormat == true){
+		  //initialize empty free map
+		  freeSectors = new freeBitMap(d.getNSectors());
+		  treeCount = 0;
+		  //calculate how many sectors needed to save list of tnodes
+		  TnodeListSectors = (MAX_TREES * 4) / Disk.SECTOR_SIZE;
+		  if(((MAX_TREES * 4) % Disk.SECTOR_SIZE) != 0)
+			  TnodeListSectors++;
+		  //create sector of null pointers
+		  byte[] emptySector = new byte[Disk.SECTOR_SIZE];
+		  for(int i = 0; i < emptySector.length; i++)
+			  emptySector[i] = 0x00;
+		  //write emtpy sectors to disk in first TnodeListSectors of disk.  Mark sectors as not free.
+		  TransID initializeTID = d.beginTransaction();
+		  for(int i = 0; i < TnodeListSectors; i++){
+			d.writeSector(initializeTID, i, emptySector);
+			freeSectors.markFull(i);
+		  }
+		  //set first sector of tnode list available from memory.
+		  currentTNodeListI = 0; 
+		  currentTNodeList = emptySector;
+		  //reserve free map on disk after TNodeListSectors on disk.
+		  for(int i = 0; i < freeSectors.reserveSectors; i++){
+			  freeSectors.markFull(i+TnodeListSectors);
+		  }
+		  //write free map on disk
+		  writeFreeMap(initializeTID);
 		  
+		  //commit initial tid
+		  d.commitTransaction(initializeTID);
 	  }
 	  else{
-		  
+		  treeCount = 0;
+		  //calculate how many sectors needed to save list of tnodes
+		  TnodeListSectors = (MAX_TREES * 4) / Disk.SECTOR_SIZE;
+		  if(((MAX_TREES * 4) % Disk.SECTOR_SIZE) != 0)
+			  TnodeListSectors++;
+		  //create sector temp
+		  byte[] temp = new byte[Disk.SECTOR_SIZE];
+		  //read TnodeListSectors of disk.  get tree count
+		  TransID initializeTID = d.beginTransaction();
+		  int i;
+		  for(i = 0; i < TnodeListSectors; i++){
+			//read sector of list
+			d.readSector(initializeTID, i, temp);
+			//count set trees in sector
+			ByteBuffer b = ByteBuffer.allocate(Disk.SECTOR_SIZE);
+	    	b.put(temp);
+	    	for(int j = 0; j < (Disk.SECTOR_SIZE / 4); j++){
+	    	int treeNum = b.getInt();
+	    	if (treeNum != 0)
+	    		treeCount++;
+	    	}
+		  }
+		  //set last read sector available
+		  currentTNodeListI = i; 
+		  currentTNodeList = temp;
+		  //read free map from disk and create free map
+		  int reserveSectors = d.getNSectors() / (8 * Disk.SECTOR_SIZE); 
+		  if(d.getNSectors() % (8 * Disk.SECTOR_SIZE) != 0)
+			reserveSectors++;
+		  byte[] freeMap = new byte[reserveSectors * Disk.SECTOR_SIZE];
+		  temp = new byte[Disk.SECTOR_SIZE];
+		  for(i = 0; i < reserveSectors; i++){
+			  d.readSector(initializeTID, i+TnodeListSectors, temp);
+			  System.arraycopy(temp, 0, freeMap, i*Disk.SECTOR_SIZE, Disk.SECTOR_SIZE);
+		  }
+		  freeSectors = new freeBitMap(d.getNSectors(), freeMap);
+		  //commit initial tid
+		  d.commitTransaction(initializeTID);
 	  }
   }
 
@@ -108,10 +180,41 @@ public class PTree{
   public int createTree(TransID xid) 				//TODO
     throws IOException, IllegalArgumentException, ResourceException
   {
-	  int TNum = 0;
+	  int TNum = -1;
 	  try{
 		  Ptree_lock.lock();
+		  //get transaction
+		  Transaction newP_trans = d.atranslist.get(xid);
+		  //get new tnode
+		  TNum = getFreeTnode(xid);
+		  //if no tnode availble throw resource exception
+		  if(TNum == -1)
+			  throw new ResourceException();
+		  //increment tree counter
+		  treeCount++;
+		  //get sector number to write tnode
+		  int secNum = freeSectors.getNextFree();
+		  freeSectors.markFull(secNum);
+		  //set tnode pointer on disk
+		  this.setTnodePointer(xid, TNum, secNum);
 		  
+		  //generate and fill TNode byte
+		  ByteBuffer b = ByteBuffer.allocate(Disk.SECTOR_SIZE);
+		  b.putInt(TNum); // put tnode number at top of tnode sector
+		  b.putInt(1); //put tree height
+		  //reserve space for meta data 
+		  for(int i = 0; i < (this.METADATA_SIZE / 8); i++)
+			  b.putChar((char)0x00);
+		  //reserve space for block pointers.  ie one block for every tnode pointer one pointer for each sector in block. 
+		  for(int i = 0; i < (this.TNODE_POINTERS * (this.BLOCK_SIZE_BYTES / Disk.SECTOR_SIZE)); i++)
+			  b.putInt(0);
+		  //put footer tag
+		  b.putChar((char)0xFF);
+		  b.putChar((char)0x00);
+		  //generate byte array
+		  byte[] tnodeByte = b.array();
+		  //write tnode byte array to disk
+		  d.writeSector(xid, secNum, tnodeByte);		  
 	  }
 	  finally{
 		  Ptree_lock.unlock();
@@ -191,7 +294,10 @@ public class PTree{
   {
 	  try{
 		  Ptree_lock.lock();
-		  
+		  int TnodeSector = getTnodePointer(xid, tnum);
+		  byte[] temp = new byte[Disk.SECTOR_SIZE];
+		  d.readSector(xid, TnodeSector, temp);
+		  System.arraycopy(temp, 8, buffer, 0, this.METADATA_SIZE);
 	  }
 	  finally{
 		  Ptree_lock.unlock();
@@ -207,7 +313,10 @@ public class PTree{
   {
 	  try{
 		  Ptree_lock.lock();
-		  
+		  int TnodeSector = getTnodePointer(xid, tnum);
+		  byte[] temp = new byte[Disk.SECTOR_SIZE];
+		  d.readSector(xid, TnodeSector, temp);
+		  System.arraycopy(buffer, 0, temp, 8, this.METADATA_SIZE);		  
 	  }
 	  finally{
 		  Ptree_lock.unlock();
@@ -225,42 +334,99 @@ public class PTree{
   public int getParam(int param)					//TODO
     throws IOException, IllegalArgumentException
   {
-	  try {
-		  Ptree_lock.lock();
           if (param == ASK_FREE_SPACE) {
               //free blocks * bytes per block
-              return numFreeBlocks() * BLOCK_SIZE_BYTES;
+              return freeSectors.getFreeSectors() * BLOCK_SIZE_BYTES;
           } else if (param == ASK_FREE_TREES) {
               //check the TNum list
-              int count = 0;
-              for (int i = 0; i < treeIDs.length; i++) {
-                  if (!treeIDs[i]) {
-                      count++;
-                  }
-              }
+              int count = this.MAX_TREES - treeCount;
               return count;
 
-          } else if (param == ASK_MAX_TREES) {
+          } 
+  		  else if (param == ASK_MAX_TREES) {
               return MAX_TREES;
-          } else {
+          } 
+          else {
               throw new IllegalArgumentException("Illegal Argument Exception.");
           }
-      } finally {
-          Ptree_lock.unlock();
-      }
+  }
+  
+  private void writeFreeMap(TransID tid){
+	  byte[] freeMap = freeSectors.getSectorsforWrite();
+	  for(int i = 0; i < freeSectors.reserveSectors; i++){
+		  byte[] toWrite = new byte[Disk.SECTOR_SIZE];
+		  System.arraycopy(freeMap, i*Disk.SECTOR_SIZE, toWrite, 0, Disk.SECTOR_SIZE);
+		  d.writeSector(tid, i+TnodeListSectors, toWrite);
+	  }
+  }
+  
+  //given a transaction and a tndoe number set the pointer to the tnode of the given tnode number
+  private void setTnodePointer(TransID tid, int tnode, int tnodePointer) throws IllegalArgumentException, IndexOutOfBoundsException, IOException { 
+	  byte[] pointer = intToByteArray(tnodePointer);
+	  //calculate sector tnode is in
+	  int SectorNum = (tnode * 4) / Disk.SECTOR_SIZE;
+	  int SectorOffset = (tnode * 4) / Disk.SECTOR_SIZE;
+	  //read appropriate sector
+	  if(this.currentTNodeListI != SectorNum){
+		d.readSector(tid, SectorNum, currentTNodeList);
+		this.currentTNodeListI = SectorNum;
+	  }
+	  //change in memory for the new pointer
+	  System.arraycopy(pointer, 0, currentTNodeList, SectorOffset, 4);
+	  //write sector to memory
+	  d.writeSector(tid, SectorNum, currentTNodeList);
+  }
+  
+  //given a transaction and a tnode numebr return the pointer to the tnode of the given tnode number
+  private int getTnodePointer(TransID tid, int tnode) throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
+	//calculate sector tnode is in
+	int SectorNum = (tnode * 4) / Disk.SECTOR_SIZE;
+	int SectorOffset = (tnode * 4) / Disk.SECTOR_SIZE;
+	//read appropriate sector
+    if(this.currentTNodeListI != SectorNum){
+			d.readSector(tid, SectorNum, currentTNodeList);
+			this.currentTNodeListI = SectorNum;
+		  }
+	byte[] pointer = new byte[4];
+	System.arraycopy(this.currentTNodeList, SectorOffset, pointer, 0, 4);
+	return byteArraytoInt(pointer);
+  }
+  
+  //get the tnode number of the next available tnode. return -1 if no available tnodes
+  private int getFreeTnode(TransID tid) throws IllegalArgumentException, IndexOutOfBoundsException, IOException {
+	  for(int i = 0; i < this.TnodeListSectors; i++){
+		  if(this.currentTNodeListI != i){
+				d.readSector(tid, i, currentTNodeList);
+				this.currentTNodeListI = i;
+		  }
+		  ByteBuffer b = ByteBuffer.allocate(Disk.SECTOR_SIZE);
+	      b.put(currentTNodeList);
+		  for(int j = 0; j < (Disk.SECTOR_SIZE / 4); j++){
+			  int temp = b.getInt();
+			  if(temp == 0)
+				  return ((i * (Disk.SECTOR_SIZE / 4)) + j);
+		  }
+	  }
+	  return -1;
+  }
+  
+  // given int return byte array
+  public static byte[] intToByteArray(int value)
+  {
+        return new byte[] {(byte)(value >>> 24),(byte)(value >>> 16),(byte)(value >>> 8),(byte)value};
+  }
+  
+  //give byte array return int
+  public static int byteArraytoInt( byte[] bytes ) {
+	    int result = 0;
+	    for (int i=0; i<4; i++) {
+	      result = ( result << 8 ) - Byte.MIN_VALUE + (int) bytes[i];
+	    }
+	    return result;
   }
 
   
 }
 
-public class freeBitMap {
-	byte[] bitmap; 
-	int sectorCount; 
-	
-	public freeBitMap(int numSecs){	
-	
-	}
-	
-	
-}
+
 
