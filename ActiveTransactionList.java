@@ -68,6 +68,9 @@ public class ActiveTransactionList{
           }
     	  return temp; 
     }
-
+    
+    public int size(){
+    	return activeTransactions.size();
+    }
 
 }
