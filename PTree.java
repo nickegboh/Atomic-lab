@@ -41,13 +41,17 @@ public class PTree{
   int TnodeListSectors;
   SimpleLock Ptree_lock;
   Condition noActiveTrans;
+  ///////////////////////////////////
+  public static final byte[] zeroBuffer = new byte[BLOCK_SIZE_BYTES];
+  public static final short NULL_PTR = (short) Short.MIN_VALUE;
+  //////////////////////////////////
 
 
   /* This function is the constructor. If doFormat == false, data stored 
    * in previous sessions must remain stored. If doFormat == true, the 
    * system should initialize the underlying disk to empty. 
    */
-  public PTree(boolean doFormat) throws IllegalArgumentException, IOException						//TODO
+  public PTree(boolean doFormat) throws IllegalArgumentException, IOException						
   {
 	  Ptree_lock = new SimpleLock();	//mutex lock
 	  noActiveTrans = Ptree_lock.newCondition();
@@ -177,7 +181,7 @@ public class PTree{
   /* This function creates a new tree and returns the 
    * TNum number (a unique identifier for the tree). 
    */
-  public int createTree(TransID xid) 				//TODO
+  public int createTree(TransID xid) 				
     throws IOException, IllegalArgumentException, ResourceException
   {
 	  int TNum = -1;
@@ -248,7 +252,22 @@ public class PTree{
   {
 	  try{
 		  Ptree_lock.lock();
-		  
+		  int just_gotMaxID = getMaxDataBlockId(xid, tnum);
+		  if(blockId > just_gotMaxID){
+			  for (int i = 0; i < BLOCK_SIZE_BYTES; i++) {//If block does not exist fill *buffer with '\0' values
+                  buffer[i] = zeroBuffer[i];
+              }
+              return;
+		  }
+		  if(getHeight(just_gotMaxID) == 1){//If we just the root node then read and return
+			  
+		  }
+		  int leavesBelow = (int) Math.pow(POINTERS_PER_INTERNAL_NODE, getHeight(just_gotMaxID)-1);
+		  int index = blockId / leavesBelow;
+		  if(getTnodePointer(xid, index) == NULL_PTR) {//Not sure bout this
+				//freeSectors.fill(readBlock(tid, root.pointers[blockID]), buffer);
+				return;
+			}
 	  }
 	  finally{
 		  Ptree_lock.unlock();
@@ -283,7 +302,7 @@ public class PTree{
    * associated with a given tree. 
    */
   public void readTreeMetadata(TransID xid, int tnum, byte buffer[])
-    throws IOException, IllegalArgumentException	//TODO
+    throws IOException, IllegalArgumentException
   {
 	  try{
 		  Ptree_lock.lock();
@@ -302,7 +321,7 @@ public class PTree{
    * tree tnum from the buffer beginning at buffer.
    */
   public void writeTreeMetadata(TransID xid, int tnum, byte buffer[])
-    throws IOException, IllegalArgumentException	//TODO
+    throws IOException, IllegalArgumentException	
   {
 	  try{
 		  Ptree_lock.lock();
@@ -321,7 +340,8 @@ public class PTree{
    * is an uninterpreted array of bytes that higher-level code may use to store state 
    * associated with a given tree. 
    */
-  public int getMaxDataBlockId(TransID xid, int tnum) throws IllegalArgumentException, IndexOutOfBoundsException, IOException  {
+  public int getMaxDataBlockId(TransID xid, int tnum) 
+  throws IllegalArgumentException, IndexOutOfBoundsException, IOException  {
 	  int MaxDataBlockId = 0;
 	  try{
 		  Ptree_lock.lock();
@@ -342,7 +362,8 @@ public class PTree{
   /* This function writes PTree.METADATA_SIZE bytes of per-tree metadata for 
    * tree tnum from the buffer beginning at buffer.
    */
-  public void updateMaxDataBlockId(TransID xid, int tnum, int newMaxBlockId) throws IllegalArgumentException, IndexOutOfBoundsException, IOException
+  public void updateMaxDataBlockId(TransID xid, int tnum, int newMaxBlockId) 
+  throws IllegalArgumentException, IndexOutOfBoundsException, IOException
   {
 	  try{
 		  Ptree_lock.lock();
@@ -357,6 +378,33 @@ public class PTree{
 	  }
   }
   
+  /* This function allows applications to get parameters of the persistent tree 
+   * system. The parameter is one of PTree.ASK_FREE_SPACE (to ask how much free 
+   * space the system currently has), PTree.ASK_MAX_TREES (to ask what is the 
+   * maximum number of trees the system can support), and PTree.ASK_FREE_TREES 
+   * (to ask how many free tree IDs the system currently has). It returns an 
+   * integer answer to the question or throws IllegalArgumentException if param 
+   * does not correspond to one of these value.. 
+   */
+  public int getParam(int param)					
+    throws IOException, IllegalArgumentException
+  {
+          if (param == ASK_FREE_SPACE) {
+              //free blocks * bytes per block
+              return freeSectors.getFreeSectors() * BLOCK_SIZE_BYTES;
+          } else if (param == ASK_FREE_TREES) {
+              //check the TNum list
+              int count = this.MAX_TREES - treeCount;
+              return count;
+          } 
+  		  else if (param == ASK_MAX_TREES) {
+              return MAX_TREES;
+          } 
+          else {
+              throw new IllegalArgumentException("Illegal Argument Exception.");
+          }
+  }
+///////////////////////////HELPER////////////////////////////////////////////////////////  
   public int getHeight(int maxDataBlockId){
 	  int height = 0;
 	  if(maxDataBlockId < TNODE_POINTERS)
@@ -368,34 +416,6 @@ public class PTree{
 	  height = i+1;
 	  }
 	  return height; 		  
-  }
-  
-  /* This function allows applications to get parameters of the persistent tree 
-   * system. The parameter is one of PTree.ASK_FREE_SPACE (to ask how much free 
-   * space the system currently has), PTree.ASK_MAX_TREES (to ask what is the 
-   * maximum number of trees the system can support), and PTree.ASK_FREE_TREES 
-   * (to ask how many free tree IDs the system currently has). It returns an 
-   * integer answer to the question or throws IllegalArgumentException if param 
-   * does not correspond to one of these value.. 
-   */
-  public int getParam(int param)					//TODO
-    throws IOException, IllegalArgumentException
-  {
-          if (param == ASK_FREE_SPACE) {
-              //free blocks * bytes per block
-              return freeSectors.getFreeSectors() * BLOCK_SIZE_BYTES;
-          } else if (param == ASK_FREE_TREES) {
-              //check the TNum list
-              int count = this.MAX_TREES - treeCount;
-              return count;
-
-          } 
-  		  else if (param == ASK_MAX_TREES) {
-              return MAX_TREES;
-          } 
-          else {
-              throw new IllegalArgumentException("Illegal Argument Exception.");
-          }
   }
   
   private void writeFreeMap(TransID tid){
@@ -446,8 +466,7 @@ public class PTree{
 				d.readSector(tid, i, currentTNodeList);
 				this.currentTNodeListI = i;
 		  }
-		  ByteBuffer b = ByteBuffer.allocate(Disk.SECTOR_SIZE);
-	      b.put(currentTNodeList);
+		  ByteBuffer b = ByteBuffer.wrap(currentTNodeList);
 		  for(int j = 0; j < (Disk.SECTOR_SIZE / 4); j++){
 			  int temp = b.getInt();
 			  if(temp == 0)
