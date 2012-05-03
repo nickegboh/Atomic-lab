@@ -211,7 +211,7 @@ public class PTree{
 			  b.putChar((char)0x00);
 		  //reserve space for block pointers.  ie one block for every tnode pointer one pointer for each sector in block. 
 		  for(int i = 0; i < (this.TNODE_POINTERS * (this.BLOCK_SIZE_BYTES / Disk.SECTOR_SIZE)); i++)
-			  b.putInt(0);
+			  b.putShort((short) 0);
 		  //put footer tag
 		  b.putChar((char)0xFF);
 		  b.putChar((char)0x00);
@@ -264,6 +264,7 @@ public class PTree{
 			  int TnodeSector = getTnodePointer(xid, tnum);
 			  byte[] temp = new byte[Disk.SECTOR_SIZE];
 			  d.readSector(xid, TnodeSector, temp);
+			  
 			  System.arraycopy(temp, 0, buffer, 0, BLOCK_SIZE_BYTES);
 			  return;
 		  }
@@ -348,8 +349,8 @@ public class PTree{
 	  try{
 		  Ptree_lock.lock();
 		  // first if there are no written blocks, expand height & continue
-		  int just_gotMaxID = getMaxDataBlockId(xid, tnum);
-		  int tempHeight = getHeight(just_gotMaxID);
+		  
+		  int tempHeight = getHeight(blockId);
 		  if(tempHeight == 0){
 			  while(maxBlocks(tempHeight)< blockId){
 				  tempHeight++;}
@@ -399,7 +400,8 @@ public class PTree{
 			if (getTnodePointer(tid, blockID) != NULL_PTR)
 				block = getTnodePointer(tid, blockID);
 			else
-				block = getSectors(tid, BLOCK_SIZE_SECTORS);//?
+				block = this.freeSectors.getFreeSectors();
+				//block = getSectors(tid, BLOCK_SIZE_SECTORS);//?
 			
 			int TnodeSector = getTnodePointer(tid, block);
 		  	d.writeSector(tid, TnodeSector, buffer);
@@ -602,7 +604,7 @@ public class PTree{
   public static int byteArraytoInt( byte[] bytes ) {
 	    int result = 0;
 	    for (int i=0; i<4; i++) {
-	      result = ( result << 8 ) - Byte.MIN_VALUE + (int) bytes[i];
+	      result = ( result << 8 )+ (int) bytes[i];
 	    }
 	    return result;
   }
