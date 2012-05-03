@@ -259,20 +259,80 @@ public class PTree{
               }
               return;
 		  }
-		  if(getHeight(just_gotMaxID) == 1){//If we just the root node then read and return
-			  
+		  if(getHeight(just_gotMaxID) == 1){//If we just the root node then read and return**
+			  //freeSectors.fill(readBlock(tid, root.pointers[blockID]), buffer);
+			  int TnodeSector = getTnodePointer(xid, tnum);
+			  byte[] temp = new byte[Disk.SECTOR_SIZE];
+			  d.readSector(xid, TnodeSector, temp);
+			  System.arraycopy(temp, 0, buffer, 0, BLOCK_SIZE_BYTES);
+			  return;
 		  }
 		  int leavesBelow = (int) Math.pow(POINTERS_PER_INTERNAL_NODE, getHeight(just_gotMaxID)-1);
 		  int index = blockId / leavesBelow;
-		  if(getTnodePointer(xid, index) == NULL_PTR) {//Not sure bout this
+		  if(getTnodePointer(xid, index) == NULL_PTR) {//Not sure bout this**
 				//freeSectors.fill(readBlock(tid, root.pointers[blockID]), buffer);
+			  	int TnodeSector = getTnodePointer(xid, index);
+			  	byte[] temp = new byte[Disk.SECTOR_SIZE];
+			  	d.readSector(xid, TnodeSector, temp);
+			  	System.arraycopy(temp, 0, buffer, 0, BLOCK_SIZE_BYTES);
 				return;
-			}
+		  }
+		  //Now recurse
+		  //readDataREC(xid, getHeight(just_gotMaxID)-1, getChild(xid, root, index), blockId%leavesBelow, buffer);
+		  readDataREC(xid, getHeight(just_gotMaxID)-1, blockId%leavesBelow, buffer);
 	  }
 	  finally{
 		  Ptree_lock.unlock();
 	  }
   }
+  /////////////////////////////////////////////////////////////////////////////////////////////
+//  public void readDataREC(TransID tid, int height, InternalNode node, int blockID, byte[] buffer) //recursive function for readData
+//  throws IllegalArgumentException, IndexOutOfBoundsException, IOException {
+	public void readDataREC(TransID tid, int height, int blockID, byte[] buffer) //recursive function for readData
+	  throws IllegalArgumentException, IndexOutOfBoundsException, IOException {
+		assert (height >= 1);
+
+		if (height == 1) {
+			if (blockID >= POINTERS_PER_INTERNAL_NODE){
+				for (int i = 0; i < BLOCK_SIZE_BYTES; i++) {//If block does not exist fill *buffer with '\0' values
+	                  buffer[i] = zeroBuffer[i];
+	              }
+	              return;
+			}
+			else if (getTnodePointer(tid, blockID) == NULL_PTR){//Not sure bout this**
+				//freeSectors.fill(new byte[BLOCK_SIZE_BYTES], buffer);
+				int TnodeSector = getTnodePointer(tid, blockID);
+			  	byte[] temp = new byte[Disk.SECTOR_SIZE];
+			  	d.readSector(tid, TnodeSector, temp);
+			  	System.arraycopy(temp, 0, buffer, 0, BLOCK_SIZE_BYTES);
+				return;
+			}
+			else{
+				//freeSectors.fill(readBlock(tid, node.pointers[blockID]), buffer);//Not sure bout this**
+				int TnodeSector = getTnodePointer(tid, blockID);
+			  	byte[] temp = new byte[Disk.SECTOR_SIZE];
+			  	d.readSector(tid, TnodeSector, temp);
+			  	System.arraycopy(temp, 0, buffer, 0, BLOCK_SIZE_BYTES);
+				return;
+			}
+			//return;
+		}
+
+		int leavesBelow = (int) Math.pow(POINTERS_PER_INTERNAL_NODE, height-1);
+		int index = blockID / leavesBelow;
+
+		if(getTnodePointer(tid, index) == NULL_PTR) {
+			//freeSectors.fill(new byte[BLOCK_SIZE_BYTES], buffer);//Not sure bout this**
+			int TnodeSector = getTnodePointer(tid, index);
+		  	byte[] temp = new byte[Disk.SECTOR_SIZE];
+		  	d.readSector(tid, TnodeSector, temp);
+		  	System.arraycopy(temp, 0, buffer, 0, BLOCK_SIZE_BYTES);
+			return;
+		}
+		//readDataREC(tid, height-1, getChild(tid, node, index), blockID%leavesBelow, buffer);
+		readDataREC(tid, height-1, blockID%leavesBelow, buffer);
+	}
+  ////////////////////////////////////////////////////////////////////////////////////////////
 
   /* This function writes PTREE.BLOCK_SIZE_BYTES bytes from the buffer specified 
    * by buffer into the blockId'th block of data in the tree specified by tnum. 
@@ -287,15 +347,71 @@ public class PTree{
   {
 	  try{
 		  Ptree_lock.lock();
-		  //calculate height
-		  
-		  
+		  // first if there are no written blocks, expand height & continue
+		  int just_gotMaxID = getMaxDataBlockId(xid, tnum);
+		  int tempHeight = getHeight(just_gotMaxID);
+		  if(tempHeight == 0){
+			  while(maxBlocks(tempHeight)< blockId){
+				  tempHeight++;}
+		  }
+		  else
+			  while(maxBlocks(tempHeight) < blockId){
+				  tempHeight++;
+				  //........
+			  }
+		  //writeRoot();
+		  assert(tempHeight >= 1);
+			if (tempHeight == 1) {// if only block is the root
+//				short block = getSectors(tid, BLOCK_SIZE_SECTORS);
+//				writeBlock(tid, block, buffer);
+//				root.pointers[blockID] = block;
+//				writeRoot(tid, tnum, root);			
+//				return;
+				int TnodeSector = getTnodePointer(xid, blockId);
+			  	d.writeSector(xid, TnodeSector, buffer);
+				return;
+			}
+			int leavesBelow = (int) Math.pow(POINTERS_PER_INTERNAL_NODE, tempHeight-1);
+			int index =  (blockId / leavesBelow);
+//			writeVisit(tid, tempHeight-1, getChild(tid, root, index), blockId%leavesBelow, buffer);
+			writeVisit(xid, tempHeight-1, blockId%leavesBelow, buffer);
 	  }
 	  finally{
 		  Ptree_lock.unlock();
 	  }
   }
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  //Find the maximum block ID a tree of a given height supports
+	public static int maxBlocks(int height) {
+		return TNODE_POINTERS * (int)Math.pow(POINTERS_PER_INTERNAL_NODE, height - 1) - 1;
+	}
+	/////////
+	
+//	public void writeVisit(TransID tid, int height, InternalNode node, int blockID, byte[] buffer) 
+//		throws IllegalArgumentException, IndexOutOfBoundsException, ResourceException, IOException {
+	public void writeVisit(TransID tid, int height,int blockID, byte[] buffer) 
+		throws IllegalArgumentException, IndexOutOfBoundsException, ResourceException, IOException {
 
+		assert (height >= 1);
+		if(height == 1) {
+			assert (blockID < POINTERS_PER_INTERNAL_NODE);
+			int block;
+			if (getTnodePointer(tid, blockID) != NULL_PTR)
+				block = getTnodePointer(tid, blockID);
+			else
+				block = getSectors(tid, BLOCK_SIZE_SECTORS);//?
+			
+			int TnodeSector = getTnodePointer(tid, block);
+		  	d.writeSector(tid, TnodeSector, buffer);
+			return;
+		}
+
+		int leavesBelow = (int) Math.pow(POINTERS_PER_INTERNAL_NODE, height-1);
+		int index = blockID / leavesBelow;
+		writeVisit(tid, height-1, blockID%leavesBelow, buffer);
+	}
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  
   /* This function reads PTree.METADATA_SIZE bytes of per-tree metadata for tree tnum 
    * and stores this data in the buffer beginning at buffer. This per-tree metadata 
    * is an uninterpreted array of bytes that higher-level code may use to store state 
@@ -493,6 +609,5 @@ public class PTree{
 
   
 }
-
 
 
