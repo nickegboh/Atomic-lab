@@ -236,7 +236,10 @@ public class PTree{
   {
 	  try{
 		  Ptree_lock.lock();
-		  
+		  short tnodePointer = (short) this.getTnodePointer(xid, tnum);
+		  this.destroyTNode(xid, tnodePointer);
+		  this.setTnodePointer(xid, tnum, NULL_PTR);
+		  this.treeCount--;
 	  }
 	  finally{
 		  Ptree_lock.unlock();
@@ -746,6 +749,16 @@ public class PTree{
 		  this.setPointerInode(xid, tempInode1, tempInode2, true, i, NULL_PTR);
 		  this.setPointerInode(xid, tempInode1, tempInode2, false, i, NULL_PTR);
 	  }
+  }
+  
+  private void destroyTNode(TransID xid, short tempInode1) throws IllegalArgumentException, IndexOutOfBoundsException, IOException {
+	  for(int i = 0; i < TNODE_POINTERS; i++){
+		  short temp1 = this.getPointerTnode(xid, tempInode1, true, i);
+		  short temp2 = this.getPointerTnode(xid, tempInode1, false, i);
+		  if(temp1 != NULL_PTR && temp2 != NULL_PTR)
+			  destroyNode(xid, temp1, temp2);
+	  }
+	  this.freeSectors.markEmpty(tempInode1);
   }
   
   private void destroyNode(TransID xid, short tempInode1, short  tempInode2) throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
