@@ -208,11 +208,11 @@ public class PTree{
 		  b.putInt(TNum); // put tnode number at top of tnode sector
 		  b.putInt(0); //put tree max seen id
 		  //reserve space for meta data 
-		  for(int i = 0; i < (this.METADATA_SIZE / 8); i++)
+		  for(int i = 0; i < (METADATA_SIZE / 8 / 2); i++)
 			  b.putChar((char)0x00);
 		  //reserve space for block pointers.  ie one block for every tnode pointer one pointer for each sector in block. 
-		  for(int i = 0; i < (this.TNODE_POINTERS * (this.BLOCK_SIZE_BYTES / Disk.SECTOR_SIZE)); i++)
-			  b.putShort((short) 0);
+		  for(int i = 0; i < (TNODE_POINTERS * (BLOCK_SIZE_BYTES / Disk.SECTOR_SIZE)); i++)
+			  b.putShort(this.NULL_PTR);
 		  //put footer tag
 		  b.putChar((char)0xFF);
 		  b.putChar((char)0x00);
@@ -249,7 +249,7 @@ public class PTree{
    * function should fill *buffer with '\0' values.
    */
   public void readData(TransID xid, int tnum, int blockId, byte buffer[])
-    throws IOException, IllegalArgumentException	//TODO
+    throws IOException, IllegalArgumentException	
   {
 	  try{
 		  Ptree_lock.lock();
@@ -317,7 +317,7 @@ public class PTree{
    * updates must be done atomically within the transaction. 
    */
   public void writeData(TransID xid, int tnum, int blockId, byte buffer[])
-    throws IOException, IllegalArgumentException	//TODO
+    throws IOException, IllegalArgumentException
   {
 	  try{
 		  Ptree_lock.lock();
@@ -325,13 +325,14 @@ public class PTree{
 		  int just_gotMaxID = getMaxDataBlockId(xid, tnum);
 		  int current_Height = getHeight(just_gotMaxID);
 		  short TnodeSector = (short)getTnodePointer(xid, tnum);
-		  
+			  //shift tree
+			  //update current height
 		  if(just_gotMaxID < blockId && current_Height < getHeight(blockId)){
 			  int old_height = current_Height;
 			  current_Height = getHeight(blockId);
-			  short[] backupPointers= new short[this.TNODE_POINTERS * 2 * 2];
+			  short[] backupPointers= new short[TNODE_POINTERS * 2 * 2];
 			  int pointerNum = 0; 
-			  for(int i = 0; i < (this.TNODE_POINTERS * 2 * 2); i++){
+			  for(int i = 0; i < (TNODE_POINTERS * 2 * 2); i++){
 				  backupPointers[i] = this.getPointerTnode(xid, TnodeSector, true, pointerNum);
 				  i++;
 				  backupPointers[i] = this.getPointerTnode(xid, TnodeSector, false, pointerNum);
@@ -348,7 +349,7 @@ public class PTree{
 			  }
 			  destroyFirstEight(xid, tempInode1, tempInode2);
 			  pointerNum = 0;
-			  for(int i = 0; i < (this.TNODE_POINTERS * 2 * 2); i++){
+			  for(int i = 0; i < (TNODE_POINTERS * 2 * 2); i++){
 				  this.setPointerInode(xid, tempInode1, tempInode2, true, pointerNum, backupPointers[i]);
 				  i++;
 				  this.setPointerInode(xid, tempInode1, tempInode2, false, pointerNum, backupPointers[i]);
@@ -358,7 +359,9 @@ public class PTree{
 		  
 		  if(just_gotMaxID < blockId)
 			  this.updateMaxDataBlockId(xid, tnum, blockId);
+			  
 		  
+		  //short TnodeSector = (short)getTnodePointer(xid, tnum);
 		  if(current_Height == 1){
 			  int newSec1 = this.freeSectors.getNextFree();
 			  this.freeSectors.markFull(newSec1);
@@ -370,13 +373,13 @@ public class PTree{
 			  return;
 		  }
 		  //From this point on height is more than 1
-		  int leavesBelow = (int) Math.pow(POINTERS_PER_INTERNAL_NODE, getHeight(just_gotMaxID)-1);
+		  int leavesBelow = (int) Math.pow(POINTERS_PER_INTERNAL_NODE, current_Height-1);
 		  int pointerNum = blockId / leavesBelow;
 		  short nextSEC_NUM1 = this.getPointerTnode(xid, TnodeSector, true, pointerNum);
 		  short nextSEC_NUM2 = this.getPointerTnode(xid, TnodeSector, false, pointerNum);
 
 		  //Now recurse
-		  writeDataREC(xid, getHeight(just_gotMaxID)-1, blockId%leavesBelow, nextSEC_NUM1, nextSEC_NUM2, buffer);
+		  writeDataREC(xid, current_Height-1, blockId%leavesBelow, nextSEC_NUM1, nextSEC_NUM2, buffer);
 		  
 	  }
 	  finally{
@@ -425,7 +428,7 @@ public class PTree{
 		  int TnodeSector = getTnodePointer(xid, tnum);
 		  byte[] temp = new byte[Disk.SECTOR_SIZE];
 		  d.readSector(xid, TnodeSector, temp);
-		  System.arraycopy(temp, 8, buffer, 0, this.METADATA_SIZE);
+		  System.arraycopy(temp, 8, buffer, 0, METADATA_SIZE);
 	  }
 	  finally{
 		  Ptree_lock.unlock();
@@ -444,7 +447,7 @@ public class PTree{
 		  int TnodeSector = getTnodePointer(xid, tnum);
 		  byte[] temp = new byte[Disk.SECTOR_SIZE];
 		  d.readSector(xid, TnodeSector, temp);
-		  System.arraycopy(buffer, 0, temp, 8, this.METADATA_SIZE);		  
+		  System.arraycopy(buffer, 0, temp, 8, METADATA_SIZE);		  
 	  }
 	  finally{
 		  Ptree_lock.unlock();
@@ -509,9 +512,10 @@ public class PTree{
           if (param == ASK_FREE_SPACE) {
               //free blocks * bytes per block
               return freeSectors.getFreeSectors() * BLOCK_SIZE_BYTES;
-          } else if (param == ASK_FREE_TREES) {
+          } 
+          else if (param == ASK_FREE_TREES) {
               //check the TNum list
-              int count = this.MAX_TREES - treeCount;
+              int count = MAX_TREES - treeCount;
               return count;
           } 
   		  else if (param == ASK_MAX_TREES) {
@@ -521,7 +525,7 @@ public class PTree{
               throw new IllegalArgumentException("Illegal Argument Exception.");
           }
   }
-///////////////////////////HELPER////////////////////////////////////////////////////////  
+/////////////////////////////////////////////////////////HELPERs////////////////////////////////////////////////////////////////////////
   public int getHeight(int maxDataBlockId){
 	  int height = 0;
 	  if(maxDataBlockId < TNODE_POINTERS)
@@ -545,7 +549,8 @@ public class PTree{
   }
   
   //given a transaction and a tndoe number set the pointer to the tnode of the given tnode number
-  private void setTnodePointer(TransID tid, int tnode, int tnodePointer) throws IllegalArgumentException, IndexOutOfBoundsException, IOException { 
+  private void setTnodePointer(TransID tid, int tnode, int tnodePointer) 
+  	throws IllegalArgumentException, IndexOutOfBoundsException, IOException { 
 	  byte[] pointer = intToByteArray(tnodePointer);
 	  //calculate sector tnode is in
 	  int SectorNum = (tnode * 4) / Disk.SECTOR_SIZE;
@@ -562,7 +567,8 @@ public class PTree{
   }
   
   //given a transaction and a tnode numebr return the pointer to the tnode of the given tnode number
-  private int getTnodePointer(TransID tid, int tnode) throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
+  private int getTnodePointer(TransID tid, int tnode) 
+  	throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
 	//calculate sector tnode is in
 	int SectorNum = (tnode * 4) / Disk.SECTOR_SIZE;
 	int SectorOffset = (tnode * 4) / Disk.SECTOR_SIZE;
@@ -577,7 +583,8 @@ public class PTree{
   }
   
   //get the tnode number of the next available tnode. return -1 if no available tnodes
-  private int getFreeTnode(TransID tid) throws IllegalArgumentException, IndexOutOfBoundsException, IOException {
+  private int getFreeTnode(TransID tid) 
+  	throws IllegalArgumentException, IndexOutOfBoundsException, IOException {
 	  for(int i = 0; i < this.TnodeListSectors; i++){
 		  if(this.currentTNodeListI != i){
 				d.readSector(tid, i, currentTNodeList);
@@ -594,7 +601,8 @@ public class PTree{
   }
   
 //set pointer of an interior node.
-  private short getPointerInode(TransID tid, short nodePointer1, short nodePointer2, boolean firstPointer, int pointerNum) throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
+  private short getPointerInode(TransID tid, short nodePointer1, short nodePointer2, boolean firstPointer, int pointerNum) 
+  	throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
           byte[] inode = new byte[Disk.SECTOR_SIZE];
           byte[] result = new byte[2];
           pointerNum = pointerNum * 4;
@@ -612,7 +620,8 @@ public class PTree{
   }
  
   //get pointer of an interior node
-  private void setPointerInode(TransID tid, short nodePointer1, short nodePointer2, boolean firstPointer, int pointerNum, short newPointer) throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
+  private void setPointerInode(TransID tid, short nodePointer1, short nodePointer2, boolean firstPointer, int pointerNum, short newPointer) 
+  	throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
           byte[] inode = new byte[Disk.SECTOR_SIZE];
           byte[] toWrite = shortToByteArray(newPointer);
           pointerNum = pointerNum * 4;
@@ -632,7 +641,8 @@ public class PTree{
   }
  
   //get pointer of a tnode
-  private short getPointerTnode(TransID tid, short nodePointer, boolean firstPointer, int pointerNum) throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
+  private short getPointerTnode(TransID tid, short nodePointer, boolean firstPointer, int pointerNum) 
+  	throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
           byte[] inode = new byte[Disk.SECTOR_SIZE];
           byte[] result = new byte[2];
           pointerNum = pointerNum * 4;
@@ -646,7 +656,8 @@ public class PTree{
   }
  
   //set pointer of a tnode
-  private void setPointerTnode(TransID tid, short nodePointer, boolean firstPointer, int pointerNum, short newPointer) throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
+  private void setPointerTnode(TransID tid, short nodePointer, boolean firstPointer, int pointerNum, short newPointer) 
+  	throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
           byte[] inode = new byte[Disk.SECTOR_SIZE];
           byte[] toWrite = shortToByteArray(newPointer);
           pointerNum = pointerNum * 4;
@@ -671,7 +682,7 @@ public class PTree{
 	  System.arraycopy(temp,0,buffer,0         ,temp.length);
 	  System.arraycopy(temp2,0,buffer,temp.length,temp2.length);
   }
-  //write data from buffer into the two sections 
+  //write data from buffer into the two sectors 
   private void writeDataBlock(TransID tid, short sector1, short sector2, byte[] buffer) 
   	throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
 	  byte[] temp = new byte[Disk.SECTOR_SIZE];
@@ -685,6 +696,69 @@ public class PTree{
 	  
   }
   
+  private void buildEmptyTree(TransID xid, short tnode, int height) 
+  	throws IllegalArgumentException, IndexOutOfBoundsException, IOException {
+	  for(int i = 0; i < TNODE_POINTERS; i++){
+		  short temp1 = (short)this.freeSectors.getNextFree();
+		  this.freeSectors.markFull((int)temp1);
+		  short temp2 = (short)this.freeSectors.getNextFree();
+		  this.freeSectors.markFull((int)temp2);
+		  
+		  if(height > 1)
+			  buildSubTree(xid, temp1, temp2, height-1);
+		  
+		
+		  this.setPointerTnode(xid, tnode, true, i, temp1);
+		  this.setPointerTnode(xid, tnode, false, i, temp2);
+	  }
+  }
+  
+  private void buildSubTree(TransID xid, short tempInode1, short  tempInode2, int height) 
+  	throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
+	  for(int i = 0; i < POINTERS_PER_INTERNAL_NODE; i++){
+		  short temp1 = (short)this.freeSectors.getNextFree();
+		  this.freeSectors.markFull((int)temp1);
+		  short temp2 = (short)this.freeSectors.getNextFree();
+		  this.freeSectors.markFull((int)temp2);
+		  
+		  if(height > 1)
+			  buildSubTree(xid, temp1, temp2, height-1);
+		  else {
+			  for(int j = 0; j< POINTERS_PER_INTERNAL_NODE; j++){
+				  this.setPointerInode(xid, temp1, temp2, true, j, this.NULL_PTR);
+				  this.setPointerInode(xid, temp1, temp2, false, j, this.NULL_PTR);				  
+			  }
+		  }
+		
+		  this.setPointerInode(xid, tempInode1, tempInode2, true, i, temp1);
+		  this.setPointerInode(xid, tempInode1, tempInode2, false, i, temp2);
+	  }
+  }
+
+  
+  private void destroyFirstEight(TransID xid, short tempInode1, short tempInode2) throws IllegalArgumentException, IndexOutOfBoundsException, IOException {
+	  for(int i = 0; i < TNODE_POINTERS; i++){
+		  short temp1 = this.getPointerInode(xid, tempInode1, tempInode2, true, i);
+		  short temp2 = this.getPointerInode(xid, tempInode1, tempInode2, false, i);
+		  if(temp1 != NULL_PTR && temp2 != NULL_PTR)
+			  destroyNode(xid, temp1, temp2);
+		  this.setPointerInode(xid, tempInode1, tempInode2, true, i, NULL_PTR);
+		  this.setPointerInode(xid, tempInode1, tempInode2, false, i, NULL_PTR);
+	  }
+  }
+  
+  private void destroyNode(TransID xid, short tempInode1, short  tempInode2) throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
+	  for(int i = 0; i < POINTERS_PER_INTERNAL_NODE; i++){
+		  short temp1 = this.getPointerInode(xid, tempInode1, tempInode2, true, i);
+		  short temp2 = this.getPointerInode(xid, tempInode1, tempInode2, false, i);		  
+		  if(temp1 != NULL_PTR && temp2 != NULL_PTR)
+			  destroyNode(xid, temp1, temp2);
+	  }
+	  this.freeSectors.markEmpty(tempInode1);
+	  this.freeSectors.markEmpty(tempInode2);
+  }
+  
+  ///////////////////////SUB HELPERS
   // given int return byte array
   public static byte[] intToByteArray(int value)
   {
@@ -712,59 +786,7 @@ public class PTree{
 	    }
 	    return result;
   }
-  
-  private void destroyFirstEight(TransID xid, short tempInode1, short tempInode2) throws IllegalArgumentException, IndexOutOfBoundsException, IOException {
-	  for(int i = 0; i < this.TNODE_POINTERS; i++){
-		  short temp1 = this.getPointerInode(xid, tempInode1, tempInode2, true, i);
-		  short temp2 = this.getPointerInode(xid, tempInode1, tempInode2, false, i);
-		  if(temp1 != this.NULL_PTR && temp2 != this.NULL_PTR)
-			  destroyNode(xid, temp1, temp2);
-		  this.setPointerInode(xid, tempInode1, tempInode2, true, i, this.NULL_PTR);
-		  this.setPointerInode(xid, tempInode1, tempInode2, false, i, this.NULL_PTR);
-	  }
-  }
-  
-  private void destroyNode(TransID xid, short tempInode1, short  tempInode2) throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
-	  for(int i = 0; i < this.POINTERS_PER_INTERNAL_NODE; i++){
-		  short temp1 = this.getPointerInode(xid, tempInode1, tempInode2, true, i);
-		  short temp2 = this.getPointerInode(xid, tempInode1, tempInode2, false, i);		  
-		  if(temp1 != this.NULL_PTR && temp2 != this.NULL_PTR)
-			  destroyNode(xid, temp1, temp2);
-	  }
-	  this.freeSectors.markEmpty(tempInode1);
-	  this.freeSectors.markEmpty(tempInode2);
-  }
-  
-  private void buildEmptyTree(TransID xid, short tnode, int height) throws IllegalArgumentException, IndexOutOfBoundsException, IOException {
-	  for(int i = 0; i < this.TNODE_POINTERS; i++){
-		  short temp1 = (short)this.freeSectors.getNextFree();
-		  this.freeSectors.markFull((int)temp1);
-		  short temp2 = (short)this.freeSectors.getNextFree();
-		  this.freeSectors.markFull((int)temp2);
-		  
-		  if(height > 1)
-			  buildSubTree(xid, temp1, temp2, height-1);
-		
-		  this.setPointerTnode(xid, tnode, true, i, temp1);
-		  this.setPointerTnode(xid, tnode, false, i, temp2);
-	  }
-  }
-  
-  private void buildSubTree(TransID xid, short tempInode1, short  tempInode2, int height) throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
-	  for(int i = 0; i < this.POINTERS_PER_INTERNAL_NODE; i++){
-		  short temp1 = (short)this.freeSectors.getNextFree();
-		  this.freeSectors.markFull((int)temp1);
-		  short temp2 = (short)this.freeSectors.getNextFree();
-		  this.freeSectors.markFull((int)temp2);
-		  
-		  if(height > 1)
-			  buildSubTree(xid, temp1, temp2, height-1);
-		
-		  this.setPointerInode(xid, tempInode1, tempInode2, true, i, temp1);
-		  this.setPointerInode(xid, tempInode1, tempInode2, false, i, temp2);
-	  }
-  }
 
-  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  /////////////////////////////////////////END HELPERS//////////////////////////////////////////////////////////////////////////
 }
 
