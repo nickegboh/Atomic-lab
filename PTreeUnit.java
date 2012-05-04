@@ -114,7 +114,7 @@ public class PTreeUnit {
 		  return pass;
 	  }
 	  
-	  /////////////
+	  ///////////////
 	  public static boolean testcreat_killTree(){
 		  boolean pass = false;
 		  TransID tid = ptree.beginTrans();
@@ -135,5 +135,5 @@ public class PTreeUnit {
 		  }
 	  	
 	  
-
+	  /////////////////////////END TESTS/////////////////////////////////
 }

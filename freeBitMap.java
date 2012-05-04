@@ -20,12 +20,12 @@ public class freeBitMap {
 		reserveSectors = bitMapIn.length / Disk.SECTOR_SIZE;
 		bitmap = bitMapIn; 
 		freesectors = 0; 
-		for(int i = 0; i < (sectorCount / 8); i++) 
+		for(int i = 0; i < (sectorCount / 8); i++){ 
 				for(int j = 0; j < 8; j++){
 					if(((0x80 >> j) & bitmap[i]) != 0)
 						freesectors++;
 				}
-			
+		}
 	}
 	
 	public void markFull(int sectorNum){

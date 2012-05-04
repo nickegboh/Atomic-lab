@@ -57,6 +57,7 @@ public class PTree{
 	  noActiveTrans = Ptree_lock.newCondition();
 	  d = new ADisk(doFormat);
 	  treeCount = 0; 
+	  TnodeListSectors = 0;
 
 	  if(doFormat == true){
 		  //initialize empty free map
