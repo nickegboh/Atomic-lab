@@ -260,81 +260,53 @@ public class PTree{
               }
               return;
 		  }
-		  if(getHeight(just_gotMaxID) == 1){//If we just the root node then read and return**
-			  //freeSectors.fill(readBlock(tid, root.pointers[blockID]), buffer);
-			  int TnodeSector = getTnodePointer(xid, tnum);
-			  byte[] temp = new byte[Disk.SECTOR_SIZE];
-			  d.readSector(xid, TnodeSector, temp);
-			  
-			  System.arraycopy(temp, 0, buffer, 0, BLOCK_SIZE_BYTES);
+		  short TnodeSector = (short)getTnodePointer(xid, tnum);
+		  if(getHeight(just_gotMaxID) == 1){//If we just the root node then read and return
+			  short sectorPTR_1 = getPointerTnode(xid, TnodeSector, true, blockId);
+			  short sectorPTR_2 = getPointerTnode(xid, TnodeSector, false, blockId);
+			  getDataBlock(xid, sectorPTR_1, sectorPTR_2, buffer);
 			  return;
 		  }
+		  //From this point on height is more than 1
 		  int leavesBelow = (int) Math.pow(POINTERS_PER_INTERNAL_NODE, getHeight(just_gotMaxID)-1);
-		  int index = blockId / leavesBelow;
-		  if(getTnodePointer(xid, index) == NULL_PTR) {//Not sure bout this**
-				//freeSectors.fill(readBlock(tid, root.pointers[blockID]), buffer);
-			  	int TnodeSector = getTnodePointer(xid, index);
-			  	byte[] temp = new byte[Disk.SECTOR_SIZE];
-			  	d.readSector(xid, TnodeSector, temp);
-			  	System.arraycopy(temp, 0, buffer, 0, BLOCK_SIZE_BYTES);
-				return;
-		  }
+		  int pointerNum = blockId / leavesBelow;
+		  short nextSEC_NUM1 = this.getPointerTnode(xid, TnodeSector, true, pointerNum);
+		  short nextSEC_NUM2 = this.getPointerTnode(xid, TnodeSector, false, pointerNum);
+
 		  //Now recurse
-		  //readDataREC(xid, getHeight(just_gotMaxID)-1, getChild(xid, root, index), blockId%leavesBelow, buffer);
-		  readDataREC(xid, getHeight(just_gotMaxID)-1, blockId%leavesBelow, buffer);
+		  readDataREC(xid, getHeight(just_gotMaxID)-1, blockId%leavesBelow, nextSEC_NUM1, nextSEC_NUM2, buffer);
 	  }
 	  finally{
 		  Ptree_lock.unlock();
 	  }
   }
-  /////////////////////////////////////////////////////////////////////////////////////////////
-//  public void readDataREC(TransID tid, int height, InternalNode node, int blockID, byte[] buffer) //recursive function for readData
-//  throws IllegalArgumentException, IndexOutOfBoundsException, IOException {
-	public void readDataREC(TransID tid, int height, int blockID, byte[] buffer) //recursive function for readData
+  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //recursive function for readData
+	public void readDataREC(TransID tid, int height, int blockID, short thisSEC_NUM1, short thisSEC_NUM2, byte[] buffer) 
 	  throws IllegalArgumentException, IndexOutOfBoundsException, IOException {
 		assert (height >= 1);
 
 		if (height == 1) {
-			if (blockID >= POINTERS_PER_INTERNAL_NODE){
-				for (int i = 0; i < BLOCK_SIZE_BYTES; i++) {//If block does not exist fill *buffer with '\0' values
+			  short sectorPTR_1 = this.getPointerInode(tid, thisSEC_NUM1, thisSEC_NUM2, true, blockID);
+			  short sectorPTR_2 = this.getPointerInode(tid, thisSEC_NUM1, thisSEC_NUM2, false, blockID);
+			  if(sectorPTR_1 == NULL_PTR || sectorPTR_2 == NULL_PTR){
+				  for (int i = 0; i < BLOCK_SIZE_BYTES; i++) {//If block does not exist fill *buffer with '\0' values
 	                  buffer[i] = zeroBuffer[i];
 	              }
 	              return;
-			}
-			else if (getTnodePointer(tid, blockID) == NULL_PTR){//Not sure bout this**
-				//freeSectors.fill(new byte[BLOCK_SIZE_BYTES], buffer);
-				int TnodeSector = getTnodePointer(tid, blockID);
-			  	byte[] temp = new byte[Disk.SECTOR_SIZE];
-			  	d.readSector(tid, TnodeSector, temp);
-			  	System.arraycopy(temp, 0, buffer, 0, BLOCK_SIZE_BYTES);
-				return;
-			}
-			else{
-				//freeSectors.fill(readBlock(tid, node.pointers[blockID]), buffer);//Not sure bout this**
-				int TnodeSector = getTnodePointer(tid, blockID);
-			  	byte[] temp = new byte[Disk.SECTOR_SIZE];
-			  	d.readSector(tid, TnodeSector, temp);
-			  	System.arraycopy(temp, 0, buffer, 0, BLOCK_SIZE_BYTES);
-				return;
-			}
-			//return;
+			  }
+			  getDataBlock(tid, sectorPTR_1, sectorPTR_2, buffer);
+			  return;
 		}
 
 		int leavesBelow = (int) Math.pow(POINTERS_PER_INTERNAL_NODE, height-1);
-		int index = blockID / leavesBelow;
-
-		if(getTnodePointer(tid, index) == NULL_PTR) {
-			//freeSectors.fill(new byte[BLOCK_SIZE_BYTES], buffer);//Not sure bout this**
-			int TnodeSector = getTnodePointer(tid, index);
-		  	byte[] temp = new byte[Disk.SECTOR_SIZE];
-		  	d.readSector(tid, TnodeSector, temp);
-		  	System.arraycopy(temp, 0, buffer, 0, BLOCK_SIZE_BYTES);
-			return;
-		}
-		//readDataREC(tid, height-1, getChild(tid, node, index), blockID%leavesBelow, buffer);
-		readDataREC(tid, height-1, blockID%leavesBelow, buffer);
+		int pointerNumI = blockID / leavesBelow;
+		short nextSEC_NUM1 = this.getPointerInode(tid, thisSEC_NUM1, thisSEC_NUM2, true, pointerNumI);
+		short nextSEC_NUM2 = this.getPointerInode(tid, thisSEC_NUM1, thisSEC_NUM2, false, pointerNumI);
+		
+		readDataREC(tid, height-1, blockID%leavesBelow, nextSEC_NUM1, nextSEC_NUM2, buffer);
 	}
-  ////////////////////////////////////////////////////////////////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   /* This function writes PTREE.BLOCK_SIZE_BYTES bytes from the buffer specified 
    * by buffer into the blockId'th block of data in the tree specified by tnum. 
@@ -350,70 +322,69 @@ public class PTree{
 	  try{
 		  Ptree_lock.lock();
 		  // first if there are no written blocks, expand height & continue
-		  
-		  int tempHeight = getHeight(blockId);
-		  if(tempHeight == 0){
-			  while(maxBlocks(tempHeight)< blockId){
-				  tempHeight++;}
+		  int just_gotMaxID = getMaxDataBlockId(xid, tnum);
+		  int current_Height = getHeight(just_gotMaxID);
+		  if(just_gotMaxID < blockId && current_Height < getHeight(blockId)){
+			  //shift tree
+			  //update current height
 		  }
-		  else
-			  while(maxBlocks(tempHeight) < blockId){
-				  tempHeight++;
-				  //........
-			  }
-		  //writeRoot();
-		  assert(tempHeight >= 1);
-			if (tempHeight == 1) {// if only block is the root
-//				short block = getSectors(tid, BLOCK_SIZE_SECTORS);
-//				writeBlock(tid, block, buffer);
-//				root.pointers[blockID] = block;
-//				writeRoot(tid, tnum, root);			
-//				return;
-				int TnodeSector = getTnodePointer(xid, blockId);
-			  	d.writeSector(xid, TnodeSector, buffer);
-				return;
-			}
-			int leavesBelow = (int) Math.pow(POINTERS_PER_INTERNAL_NODE, tempHeight-1);
-			int index =  (blockId / leavesBelow);
-//			writeVisit(tid, tempHeight-1, getChild(tid, root, index), blockId%leavesBelow, buffer);
-			writeVisit(xid, tempHeight-1, blockId%leavesBelow, buffer);
+		  if(just_gotMaxID < blockId)
+			  this.updateMaxDataBlockId(xid, tnum, blockId);
+			  
+		  
+		  short TnodeSector = (short)getTnodePointer(xid, tnum);
+		  if(current_Height == 1){
+			  int newSec1 = this.freeSectors.getNextFree();
+			  this.freeSectors.markFull(newSec1);
+			  int newSec2 = this.freeSectors.getNextFree();
+			  this.freeSectors.markFull(newSec2);
+			  setPointerTnode(xid, TnodeSector, true, blockId, (short)newSec1);
+			  setPointerTnode(xid, TnodeSector, false, blockId, (short)newSec2);
+			  writeDataBlock(xid, (short)newSec1, (short)newSec2, buffer);
+			  return;
+		  }
+		  //From this point on height is more than 1
+		  int leavesBelow = (int) Math.pow(POINTERS_PER_INTERNAL_NODE, getHeight(just_gotMaxID)-1);
+		  int pointerNum = blockId / leavesBelow;
+		  short nextSEC_NUM1 = this.getPointerTnode(xid, TnodeSector, true, pointerNum);
+		  short nextSEC_NUM2 = this.getPointerTnode(xid, TnodeSector, false, pointerNum);
+
+		  //Now recurse
+		  writeDataREC(xid, getHeight(just_gotMaxID)-1, blockId%leavesBelow, nextSEC_NUM1, nextSEC_NUM2, buffer);
+		  
 	  }
 	  finally{
 		  Ptree_lock.unlock();
 	  }
   }
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  //Find the maximum block ID a tree of a given height supports
-	public static int maxBlocks(int height) {
-		return TNODE_POINTERS * (int)Math.pow(POINTERS_PER_INTERNAL_NODE, height - 1) - 1;
-	}
-	/////////
-	
-//	public void writeVisit(TransID tid, int height, InternalNode node, int blockID, byte[] buffer) 
-//		throws IllegalArgumentException, IndexOutOfBoundsException, ResourceException, IOException {
-	public void writeVisit(TransID tid, int height,int blockID, byte[] buffer) 
+  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //recursive function for writeData
+	public void writeDataREC(TransID tid, int height,int blockID, short thisSEC_NUM1, short thisSEC_NUM2, byte[] buffer) 
 		throws IllegalArgumentException, IndexOutOfBoundsException, ResourceException, IOException {
 
 		assert (height >= 1);
 		if(height == 1) {
-			assert (blockID < POINTERS_PER_INTERNAL_NODE);
-			int block;
-			if (getTnodePointer(tid, blockID) != NULL_PTR)
-				block = getTnodePointer(tid, blockID);
-			else
-				block = this.freeSectors.getFreeSectors();
-				//block = getSectors(tid, BLOCK_SIZE_SECTORS);//?
 			
-			int TnodeSector = getTnodePointer(tid, block);
-		  	d.writeSector(tid, TnodeSector, buffer);
-			return;
+			assert (blockID < POINTERS_PER_INTERNAL_NODE);
+			 int newSec1 = this.freeSectors.getNextFree();
+			  this.freeSectors.markFull(newSec1);
+			  int newSec2 = this.freeSectors.getNextFree();
+			  this.freeSectors.markFull(newSec2);
+			  setPointerInode(tid, thisSEC_NUM1, thisSEC_NUM2, true, blockID, (short)newSec1);
+			  setPointerInode(tid, thisSEC_NUM1, thisSEC_NUM2, false, blockID, (short)newSec2);
+			  writeDataBlock(tid, (short)newSec1, (short)newSec2, buffer);
+			  return;
 		}
 
 		int leavesBelow = (int) Math.pow(POINTERS_PER_INTERNAL_NODE, height-1);
-		int index = blockID / leavesBelow;
-		writeVisit(tid, height-1, blockID%leavesBelow, buffer);
+		int pointerNumI = blockID / leavesBelow;
+		short nextSEC_NUM1 = this.getPointerInode(tid, thisSEC_NUM1, thisSEC_NUM2, true, pointerNumI);
+		short nextSEC_NUM2 = this.getPointerInode(tid, thisSEC_NUM1, thisSEC_NUM2, false, pointerNumI);
+		
+		//Now recurse again
+		writeDataREC(tid, height-1, blockID%leavesBelow, nextSEC_NUM1, nextSEC_NUM2, buffer);
 	}
-  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   
   /* This function reads PTree.METADATA_SIZE bytes of per-tree metadata for tree tnum 
    * and stores this data in the buffer beginning at buffer. This per-tree metadata 
@@ -490,7 +461,8 @@ public class PTree{
 		  byte[] buffer = intToByteArray(newMaxBlockId);
 		  byte[] temp = new byte[Disk.SECTOR_SIZE];
 		  d.readSector(xid, TnodeSector, temp);
-		  System.arraycopy(buffer, 0, temp, 4, 4);		  
+		  System.arraycopy(buffer, 0, temp, 4, 4);
+		  d.writeSector(xid, TnodeSector, temp);
 	  }
 	  finally{
 		  Ptree_lock.unlock();
@@ -595,34 +567,96 @@ public class PTree{
 	  return -1;
   }
   
-  //set pointer of an interior node. 
-  private short getPointerInode(short nodePointer, boolean firstPointer, int pointerNum){
-	  
-	  return (short)0;
+//set pointer of an interior node.
+  private short getPointerInode(TransID tid, short nodePointer1, short nodePointer2, boolean firstPointer, int pointerNum) throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
+          byte[] inode = new byte[Disk.SECTOR_SIZE];
+          byte[] result = new byte[2];
+          pointerNum = pointerNum * 4;
+          if(!firstPointer)
+                  pointerNum = pointerNum + 2;
+          if(pointerNum < Disk.SECTOR_SIZE)
+                  d.readSector(tid, nodePointer1, inode);
+          else {
+                  d.readSector(tid, nodePointer2, inode);
+                  pointerNum = pointerNum - Disk.SECTOR_SIZE;
+          }
+          System.arraycopy(inode, pointerNum, result, 0, 2);
+         
+          return byteArraytoShort(result);
   }
-  
+ 
   //get pointer of an interior node
-  private void setPointerInode(short nodePointer, boolean firstPointer, int pointerNum, short newPointer){
-	  
-	  return;
+  private void setPointerInode(TransID tid, short nodePointer1, short nodePointer2, boolean firstPointer, int pointerNum, short newPointer) throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
+          byte[] inode = new byte[Disk.SECTOR_SIZE];
+          byte[] toWrite = shortToByteArray(newPointer);
+          pointerNum = pointerNum * 4;
+          if(!firstPointer)
+                  pointerNum = pointerNum + 2;
+          if(pointerNum < Disk.SECTOR_SIZE){
+                  d.readSector(tid, nodePointer1, inode);
+                  System.arraycopy(toWrite, 0, inode, pointerNum, 2);
+                  d.writeSector(tid, nodePointer1, inode);
+          }
+          else {
+                  d.readSector(tid, nodePointer2, inode);
+                  pointerNum = pointerNum - Disk.SECTOR_SIZE;
+                  d.writeSector(tid, nodePointer2, inode);
+          }
+          return;
   }
-  
+ 
   //get pointer of a tnode
-  private short getPointerTnode(short nodePointer, boolean firstPointer, int pointerNum){
-	  
-	  return (short)0;
+  private short getPointerTnode(TransID tid, short nodePointer, boolean firstPointer, int pointerNum) throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
+          byte[] inode = new byte[Disk.SECTOR_SIZE];
+          byte[] result = new byte[2];
+          pointerNum = pointerNum * 4;
+          if(!firstPointer)
+                  pointerNum = pointerNum + 2;
+          //adjust pointer beyond meta data
+          pointerNum = pointerNum + 8 + (PTree.METADATA_SIZE / 8);
+          d.readSector(tid, nodePointer, inode);
+          System.arraycopy(inode, pointerNum, result, 0, 2);
+          return byteArraytoShort(result);
   }
-  
-  //set pointer of a tnode 
-  private void setPointerTnode(short nodePointer, boolean firstPointer, int pointerNum, short newPointer){
-	  
-	  return;
+ 
+  //set pointer of a tnode
+  private void setPointerTnode(TransID tid, short nodePointer, boolean firstPointer, int pointerNum, short newPointer) throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
+          byte[] inode = new byte[Disk.SECTOR_SIZE];
+          byte[] toWrite = shortToByteArray(newPointer);
+          pointerNum = pointerNum * 4;
+          if(!firstPointer)
+                  pointerNum = pointerNum + 2;
+          //adjust pointer beyond meta data
+          pointerNum = pointerNum + 8 + (PTree.METADATA_SIZE / 8);
+          d.readSector(tid, nodePointer, inode);
+          System.arraycopy(toWrite, 0, inode, pointerNum, 2);
+          d.writeSector(tid, nodePointer, inode);
+          return;
   }
   
   // read a block of data given pointers to two sectors that make up a block
-  private byte[] getDataBlock(short sector1, short sector2){
+  private void getDataBlock(TransID tid, short sector1, short sector2, byte[] buffer) 
+  	throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
+	  byte[] temp = new byte[Disk.SECTOR_SIZE];
+	  byte[] temp2 = new byte[Disk.SECTOR_SIZE];
+	  d.readSector(tid, sector1, temp);
+	  d.readSector(tid, sector2, temp2);
 	  
-	  return null;
+	  System.arraycopy(temp,0,buffer,0         ,temp.length);
+	  System.arraycopy(temp2,0,buffer,temp.length,temp2.length);
+  }
+  //write data from buffer into the two sections 
+  private void writeDataBlock(TransID tid, short sector1, short sector2, byte[] buffer) 
+  	throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
+	  byte[] temp = new byte[Disk.SECTOR_SIZE];
+	  byte[] temp2 = new byte[Disk.SECTOR_SIZE];
+	  
+	  System.arraycopy(buffer,0,temp,0         ,temp.length);
+	  System.arraycopy(buffer,temp.length,temp2,0,temp2.length);
+	  
+	  d.writeSector(tid, sector1, temp);
+	  d.writeSector(tid, sector2, temp2);
+	  
   }
   
   // given int return byte array
@@ -639,8 +673,20 @@ public class PTree{
 	    }
 	    return result;
   }
-
+  public static byte[] shortToByteArray(short value)
+  {
+        return new byte[] {(byte)(value >>> 8),(byte)value};
+  }
   
-}
+  //give byte array return int
+  public static short byteArraytoShort( byte[] bytes ) {
+	    short result = 0;
+	    for (int i=0; i<2; i++) {
+	      result =(short) ((short) ( result << 8 )+ (short) bytes[i]);
+	    }
+	    return result;
+  }
 
+  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+}
 

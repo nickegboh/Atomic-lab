@@ -91,13 +91,13 @@ public class PTreeUnit {
 		  int tnum = -1;
 		  try{
 			  tnum = ptree.createTree(tid);
-			  pass = true;
+			  //pass = true;
 		  }
 		  catch(IOException e){
 			  e.printStackTrace();
 			  pass = false;
 		  }
-		  int blockId = 573;
+		  int blockId = 7;
 		  byte[] buffer = new byte[PTree.BLOCK_SIZE_BYTES];
 		  for(int i=0; i<buffer.length; i++){
 			  buffer[i] = (byte)i;
@@ -107,10 +107,14 @@ public class PTreeUnit {
 		  ptree.writeData(tid, tnum, blockId, buffer);
 		  ptree.readData(tid, tnum, blockId, buffer2);
 		  assert(Arrays.equals(buffer, buffer2));
-		  if(pass)
+		  if(Arrays.equals(buffer, buffer2)){
 			  System.out.println("Test Tree Creation: Passed!");
-		  else
+			  pass = true;
+		  }
+		  else{
 			  System.out.println("Test Tree Creation: Failed!");
+			  pass = false;
+		  }
 		  return pass;
 	  }
 	  
