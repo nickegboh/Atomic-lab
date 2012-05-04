@@ -267,6 +267,12 @@ public class PTree{
 		  if(getHeight(just_gotMaxID) == 1){//If we just the root node then read and return
 			  short sectorPTR_1 = getPointerTnode(xid, TnodeSector, true, blockId);
 			  short sectorPTR_2 = getPointerTnode(xid, TnodeSector, false, blockId);
+			  if(sectorPTR_1 == NULL_PTR || sectorPTR_2 == NULL_PTR){
+				  for (int i = 0; i < BLOCK_SIZE_BYTES; i++) {//If block does not exist fill *buffer with '\0' values
+	                  buffer[i] = zeroBuffer[i];
+	              }
+	              return;
+			  }
 			  getDataBlock(xid, sectorPTR_1, sectorPTR_2, buffer);
 			  return;
 		  }
@@ -275,6 +281,13 @@ public class PTree{
 		  int pointerNum = blockId / leavesBelow;
 		  short nextSEC_NUM1 = this.getPointerTnode(xid, TnodeSector, true, pointerNum);
 		  short nextSEC_NUM2 = this.getPointerTnode(xid, TnodeSector, false, pointerNum);
+		  
+		  if(nextSEC_NUM1 == NULL_PTR || nextSEC_NUM2 == NULL_PTR){
+			    for (int i = 0; i < BLOCK_SIZE_BYTES; i++) {//If block does not exist fill *buffer with '\0' values
+	               buffer[i] = zeroBuffer[i];
+	            }
+	            return;
+		  }
 
 		  //Now recurse
 		  readDataREC(xid, getHeight(just_gotMaxID)-1, blockId%leavesBelow, nextSEC_NUM1, nextSEC_NUM2, buffer);
@@ -307,6 +320,13 @@ public class PTree{
 		short nextSEC_NUM1 = this.getPointerInode(tid, thisSEC_NUM1, thisSEC_NUM2, true, pointerNumI);
 		short nextSEC_NUM2 = this.getPointerInode(tid, thisSEC_NUM1, thisSEC_NUM2, false, pointerNumI);
 		
+		if(nextSEC_NUM1 == NULL_PTR || nextSEC_NUM2 == NULL_PTR){
+		    for (int i = 0; i < BLOCK_SIZE_BYTES; i++) {//If block does not exist fill *buffer with '\0' values
+               buffer[i] = zeroBuffer[i];
+            }
+            return;
+		}
+		
 		readDataREC(tid, height-1, blockID%leavesBelow, nextSEC_NUM1, nextSEC_NUM2, buffer);
 	}
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -333,6 +353,7 @@ public class PTree{
 		  if(just_gotMaxID < blockId && current_Height < getHeight(blockId)){
 			  int old_height = current_Height;
 			  current_Height = getHeight(blockId);
+			  //backup old pointers
 			  short[] backupPointers= new short[TNODE_POINTERS * 2 * 2];
 			  int pointerNum = 0; 
 			  for(int i = 0; i < (TNODE_POINTERS * 2 * 2); i++){
@@ -341,16 +362,33 @@ public class PTree{
 				  backupPointers[i] = this.getPointerTnode(xid, TnodeSector, false, pointerNum);
 				  pointerNum++;
 			  }
-			  buildEmptyTree(xid, TnodeSector, current_Height);
+			  //null old first level pointers
+			  for(int i = 0; i < this.TNODE_POINTERS; i++){
+				  this.setPointerTnode(xid, TnodeSector, true, i, NULL_PTR);
+				  this.setPointerTnode(xid, TnodeSector, false, i, NULL_PTR);
+			  }  
 			  int difference = current_Height - old_height; 
-			  short tempInode1 = this.getPointerTnode(xid, TnodeSector, true, 0);
-			  short tempInode2 = this.getPointerTnode(xid, TnodeSector, false, 0);
+			  short tempInode1 = (short)this.freeSectors.getNextFree();
+			  this.freeSectors.markFull((int)tempInode1);
+			  short tempInode2 = (short)this.freeSectors.getNextFree();
+			  this.freeSectors.markFull((int)tempInode2);
+			  this.setPointerTnode(xid, TnodeSector, true, 0, tempInode1);
+			  this.setPointerTnode(xid, TnodeSector, false, 0, tempInode2);
+			  this.writeDataNew(xid, tempInode1, tempInode2);
 			  difference--;
 			  for(; difference > 0; difference--){
-				  tempInode1 = this.getPointerInode(xid, tempInode1, tempInode2, true, 0);
-				  tempInode2 = this.getPointerInode(xid, tempInode1, tempInode2, false, 0);
+				  //create new inode
+				  short tempInode1_new = (short)this.freeSectors.getNextFree();
+				  this.freeSectors.markFull((int)tempInode1_new);
+				  short tempInode2_new = (short)this.freeSectors.getNextFree();
+				  this.freeSectors.markFull((int)tempInode2_new);
+				  this.setPointerInode(xid, tempInode1, tempInode2, true, 0, tempInode1_new);
+				  this.setPointerInode(xid, tempInode1, tempInode2, false, 0, tempInode2_new);
+				  tempInode1 = tempInode1_new;
+				  tempInode2 = tempInode2_new;
+				  this.writeDataNew(xid, tempInode1, tempInode2);				  
 			  }
-			  destroyFirstEight(xid, tempInode1, tempInode2);
+			  //restore pointers to bottom of tree
 			  pointerNum = 0;
 			  for(int i = 0; i < (TNODE_POINTERS * 2 * 2); i++){
 				  this.setPointerInode(xid, tempInode1, tempInode2, true, pointerNum, backupPointers[i]);
@@ -380,6 +418,19 @@ public class PTree{
 		  int pointerNum = blockId / leavesBelow;
 		  short nextSEC_NUM1 = this.getPointerTnode(xid, TnodeSector, true, pointerNum);
 		  short nextSEC_NUM2 = this.getPointerTnode(xid, TnodeSector, false, pointerNum);
+		  
+		  if(nextSEC_NUM1 == this.NULL_PTR || nextSEC_NUM2 == this.NULL_PTR){
+			  //create new block and adjust pointers
+			  short nextSEC_NUM1_new = (short)this.freeSectors.getNextFree();
+			  this.freeSectors.markFull((int)nextSEC_NUM1_new);
+			  short nextSEC_NUM2_new = (short)this.freeSectors.getNextFree();
+			  this.freeSectors.markFull((int)nextSEC_NUM2_new);
+			  this.setPointerTnode(xid, TnodeSector, true, pointerNum, nextSEC_NUM1_new);
+			  this.setPointerTnode(xid, TnodeSector, false, pointerNum, nextSEC_NUM2_new);
+			  nextSEC_NUM1 = nextSEC_NUM1_new;
+			  nextSEC_NUM2 = nextSEC_NUM2_new;
+			  this.writeDataNew(xid, nextSEC_NUM1, nextSEC_NUM2);
+		  }
 
 		  //Now recurse
 		  writeDataREC(xid, current_Height-1, blockId%leavesBelow, nextSEC_NUM1, nextSEC_NUM2, buffer);
@@ -407,11 +458,24 @@ public class PTree{
 			  writeDataBlock(tid, (short)newSec1, (short)newSec2, buffer);
 			  return;
 		}
-
+		
 		int leavesBelow = (int) Math.pow(POINTERS_PER_INTERNAL_NODE, height-1);
 		int pointerNumI = blockID / leavesBelow;
 		short nextSEC_NUM1 = this.getPointerInode(tid, thisSEC_NUM1, thisSEC_NUM2, true, pointerNumI);
 		short nextSEC_NUM2 = this.getPointerInode(tid, thisSEC_NUM1, thisSEC_NUM2, false, pointerNumI);
+		
+	    if(nextSEC_NUM1 == this.NULL_PTR || nextSEC_NUM2 == this.NULL_PTR){
+			  //create new block and adjust pointers
+			  short nextSEC_NUM1_new = (short)this.freeSectors.getNextFree();
+			  this.freeSectors.markFull((int)nextSEC_NUM1_new);
+			  short nextSEC_NUM2_new = (short)this.freeSectors.getNextFree();
+			  this.freeSectors.markFull((int)nextSEC_NUM2_new);
+			  this.setPointerInode(tid, thisSEC_NUM1, thisSEC_NUM2, true, pointerNumI, nextSEC_NUM1_new);
+			  this.setPointerInode(tid, thisSEC_NUM1, thisSEC_NUM2, false, pointerNumI, nextSEC_NUM2_new);
+			  nextSEC_NUM1 = nextSEC_NUM1_new;
+			  nextSEC_NUM2 = nextSEC_NUM2_new;
+			  this.writeDataNew(tid, nextSEC_NUM1, nextSEC_NUM2);
+		  }
 		
 		//Now recurse again
 		writeDataREC(tid, height-1, blockID%leavesBelow, nextSEC_NUM1, nextSEC_NUM2, buffer);
@@ -699,57 +763,16 @@ public class PTree{
 	  d.writeSector(tid, sector2, temp2);
 	  
   }
-  
-  private void buildEmptyTree(TransID xid, short tnode, int height) 
-  	throws IllegalArgumentException, IndexOutOfBoundsException, IOException {
-	  for(int i = 0; i < TNODE_POINTERS; i++){
-		  short temp1 = (short)this.freeSectors.getNextFree();
-		  this.freeSectors.markFull((int)temp1);
-		  short temp2 = (short)this.freeSectors.getNextFree();
-		  this.freeSectors.markFull((int)temp2);
-		  
-		  if(height > 1)
-			  buildSubTree(xid, temp1, temp2, height-1);
-		  
-		
-		  this.setPointerTnode(xid, tnode, true, i, temp1);
-		  this.setPointerTnode(xid, tnode, false, i, temp2);
-	  }
-  }
-  
-  private void buildSubTree(TransID xid, short tempInode1, short  tempInode2, int height) 
-  	throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
-	  for(int i = 0; i < POINTERS_PER_INTERNAL_NODE; i++){
-		  short temp1 = (short)this.freeSectors.getNextFree();
-		  this.freeSectors.markFull((int)temp1);
-		  short temp2 = (short)this.freeSectors.getNextFree();
-		  this.freeSectors.markFull((int)temp2);
-		  
-		  if(height > 1)
-			  buildSubTree(xid, temp1, temp2, height-1);
-		  else {
-			  for(int j = 0; j< POINTERS_PER_INTERNAL_NODE; j++){
-				  this.setPointerInode(xid, temp1, temp2, true, j, this.NULL_PTR);
-				  this.setPointerInode(xid, temp1, temp2, false, j, this.NULL_PTR);				  
-			  }
-		  }
-		
-		  this.setPointerInode(xid, tempInode1, tempInode2, true, i, temp1);
-		  this.setPointerInode(xid, tempInode1, tempInode2, false, i, temp2);
-	  }
-  }
 
-  
-  private void destroyFirstEight(TransID xid, short tempInode1, short tempInode2) throws IllegalArgumentException, IndexOutOfBoundsException, IOException {
-	  for(int i = 0; i < TNODE_POINTERS; i++){
-		  short temp1 = this.getPointerInode(xid, tempInode1, tempInode2, true, i);
-		  short temp2 = this.getPointerInode(xid, tempInode1, tempInode2, false, i);
-		  if(temp1 != NULL_PTR && temp2 != NULL_PTR)
-			  destroyNode(xid, temp1, temp2);
-		  this.setPointerInode(xid, tempInode1, tempInode2, true, i, NULL_PTR);
-		  this.setPointerInode(xid, tempInode1, tempInode2, false, i, NULL_PTR);
-	  }
-  }
+  private void writeDataNew(TransID tid, short sector1, short sector2) 
+	throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
+	  ByteBuffer b = ByteBuffer.allocate(Disk.SECTOR_SIZE*2);
+	  for(int i = 0; i < (this.POINTERS_PER_INTERNAL_NODE*2); i++)
+		  b.putShort(this.NULL_PTR);
+	  byte[] temp = b.array();
+	  d.writeSector(tid, sector1, temp);
+	  d.writeSector(tid, sector2, temp);
+}
   
   private void destroyTNode(TransID xid, short tempInode1) throws IllegalArgumentException, IndexOutOfBoundsException, IOException {
 	  for(int i = 0; i < TNODE_POINTERS; i++){
