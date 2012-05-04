@@ -595,6 +595,36 @@ public class PTree{
 	  return -1;
   }
   
+  //set pointer of an interior node. 
+  private short getPointerInode(short nodePointer, boolean firstPointer, int pointerNum){
+	  
+	  return (short)0;
+  }
+  
+  //get pointer of an interior node
+  private void setPointerInode(short nodePointer, boolean firstPointer, int pointerNum, short newPointer){
+	  
+	  return;
+  }
+  
+  //get pointer of a tnode
+  private short getPointerTnode(short nodePointer, boolean firstPointer, int pointerNum){
+	  
+	  return (short)0;
+  }
+  
+  //set pointer of a tnode 
+  private void setPointerTnode(short nodePointer, boolean firstPointer, int pointerNum, short newPointer){
+	  
+	  return;
+  }
+  
+  // read a block of data given pointers to two sectors that make up a block
+  private byte[] getDataBlock(short sector1, short sector2){
+	  
+	  return null;
+  }
+  
   // given int return byte array
   public static byte[] intToByteArray(int value)
   {
