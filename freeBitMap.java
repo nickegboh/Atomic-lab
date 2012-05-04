@@ -52,9 +52,11 @@ public class freeBitMap {
 	
 	public int getNextFree(){
 		for(int i = 0; i < (sectorCount / 8); i++)
-			if(bitmap[i] != 0xFF){
+			if(bitmap[i] != (byte)0xFF){
+				int temp2 = bitmap[i];
 				int j = 0; 
 				for(j = 0; j < 8; j++){
+					int temp = ((0x80 >> j) & bitmap[i]);
 					if(((0x80 >> j) & bitmap[i]) == 0)
 						break;
 				}

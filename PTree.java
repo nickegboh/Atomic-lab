@@ -635,6 +635,7 @@ public class PTree{
           else {
                   d.readSector(tid, nodePointer2, inode);
                   pointerNum = pointerNum - Disk.SECTOR_SIZE;
+                  System.arraycopy(toWrite, 0, inode, pointerNum, 2);
                   d.writeSector(tid, nodePointer2, inode);
           }
           return;
@@ -767,11 +768,8 @@ public class PTree{
   
   //give byte array return int
   public static int byteArraytoInt( byte[] bytes ) {
-	    int result = 0;
-	    for (int i=0; i<4; i++) {
-	      result = ( result << 8 )+ (int) bytes[i];
-	    }
-	    return result;
+	  ByteBuffer b = ByteBuffer.wrap(bytes); 
+	  return b.getInt();
   }
   public static byte[] shortToByteArray(short value)
   {
@@ -780,11 +778,8 @@ public class PTree{
   
   //give byte array return int
   public static short byteArraytoShort( byte[] bytes ) {
-	    short result = 0;
-	    for (int i=0; i<2; i++) {
-	      result =(short) ((short) ( result << 8 )+ (short) bytes[i]);
-	    }
-	    return result;
+	  ByteBuffer b = ByteBuffer.wrap(bytes); 
+	  return b.getShort();
   }
 
   /////////////////////////////////////////END HELPERS//////////////////////////////////////////////////////////////////////////
