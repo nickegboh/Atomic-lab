@@ -333,11 +333,11 @@ public class PTree{
 			  int pointerNum = 0; 
 			  for(int i = 0; i < (this.TNODE_POINTERS * 2 * 2); i++){
 				  backupPointers[i] = this.getPointerTnode(xid, TnodeSector, true, pointerNum);
-				  i++
+				  i++;
 				  backupPointers[i] = this.getPointerTnode(xid, TnodeSector, false, pointerNum);
 				  pointerNum++;
 			  }
-			  buildEmptyTree(xid, TnodeSector);
+			  buildEmptyTree(xid, TnodeSector, current_Height);
 			  int difference = current_Height - old_height; 
 			  short tempInode1 = this.getPointerTnode(xid, TnodeSector, true, 0);
 			  short tempInode2 = this.getPointerTnode(xid, TnodeSector, false, 0);
@@ -733,6 +733,36 @@ public class PTree{
 	  }
 	  this.freeSectors.markEmpty(tempInode1);
 	  this.freeSectors.markEmpty(tempInode2);
+  }
+  
+  private void buildEmptyTree(TransID xid, short tnode, int height) throws IllegalArgumentException, IndexOutOfBoundsException, IOException {
+	  for(int i = 0; i < this.TNODE_POINTERS; i++){
+		  short temp1 = (short)this.freeSectors.getNextFree();
+		  this.freeSectors.markFull((int)temp1);
+		  short temp2 = (short)this.freeSectors.getNextFree();
+		  this.freeSectors.markFull((int)temp2);
+		  
+		  if(height > 1)
+			  buildSubTree(xid, temp1, temp2, height-1);
+		
+		  this.setPointerTnode(xid, tnode, true, i, temp1);
+		  this.setPointerTnode(xid, tnode, false, i, temp2);
+	  }
+  }
+  
+  private void buildSubTree(TransID xid, short tempInode1, short  tempInode2, int height) throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
+	  for(int i = 0; i < this.POINTERS_PER_INTERNAL_NODE; i++){
+		  short temp1 = (short)this.freeSectors.getNextFree();
+		  this.freeSectors.markFull((int)temp1);
+		  short temp2 = (short)this.freeSectors.getNextFree();
+		  this.freeSectors.markFull((int)temp2);
+		  
+		  if(height > 1)
+			  buildSubTree(xid, temp1, temp2, height-1);
+		
+		  this.setPointerInode(xid, tempInode1, tempInode2, true, i, temp1);
+		  this.setPointerInode(xid, tempInode1, tempInode2, false, i, temp2);
+	  }
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
