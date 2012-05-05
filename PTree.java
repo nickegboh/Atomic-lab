@@ -765,8 +765,8 @@ public class PTree{
 
   private void writeDataNew(TransID tid, short sector1, short sector2) 
 	throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
-	  ByteBuffer b = ByteBuffer.allocate(Disk.SECTOR_SIZE*2);
-	  for(int i = 0; i < (this.POINTERS_PER_INTERNAL_NODE*2); i++)
+	  ByteBuffer b = ByteBuffer.allocate(Disk.SECTOR_SIZE);
+	  for(int i = 0; i < (Disk.SECTOR_SIZE/2); i++)
 		  b.putShort(this.NULL_PTR);
 	  byte[] temp = b.array();
 	  d.writeSector(tid, sector1, temp);
