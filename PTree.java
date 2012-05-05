@@ -105,8 +105,7 @@ public class PTree{
 			//read sector of list
 			d.readSector(initializeTID, i, temp);
 			//count set trees in sector
-			ByteBuffer b = ByteBuffer.allocate(Disk.SECTOR_SIZE);
-	    	b.put(temp);
+			ByteBuffer b = ByteBuffer.wrap(temp);
 	    	for(int j = 0; j < (Disk.SECTOR_SIZE / 4); j++){
 	    	int treeNum = b.getInt();
 	    	if (treeNum != 0)
