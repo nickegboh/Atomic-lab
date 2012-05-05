@@ -29,19 +29,18 @@ public class FlatFSUnit {
 		  else
 			  failcount++;
 		  
-		  //Testing if file metadata can be read
-		  if(testReadFileMetadata())
-			  passcount++;
-		  else
-			  failcount++;
-		  
 		  //Test if params are right
 		  if(testGetParam())
 			  passcount++;
 		  else
 			  failcount++;
 		  
-		
+		  //Testing if file metadata can be read
+//		  if(testReadFileMetadata())
+//			  passcount++;
+//		  else
+//			  failcount++;
+
 		
 		System.out.println("\nPassed: " + passcount + " Failed: " + failcount);		
 		System.exit(0);
@@ -49,7 +48,7 @@ public class FlatFSUnit {
 	  
 	  //////////////////////TESTS////////////////////////////////////////////////
 	  
-	  public static boolean testCommitTrans() {
+	  public static boolean testCommitTrans() throws IllegalArgumentException, IOException {
 		  boolean pass = false;
 		  TransID tid = flatFS.beginTrans();
 		  try {
@@ -61,13 +60,14 @@ public class FlatFSUnit {
 			  pass = false;
 		  }
 		  if(pass)
-			  System.out.println("testGetParam: Passed!");
+			  System.out.println("Test Commit Transaction: Passed!");
 		  else
-			  System.out.println("testGetParam: Failed!");
+			  System.out.println("Test Commit Transaction: Failed!");
+//		  flatFS.abortTrans(tid);
 		  return pass;
 	  }
 	  /////////////////////
-	  public static boolean testAbortTrans() {
+	  public static boolean testAbortTrans() throws IllegalArgumentException, IOException {
 		  boolean pass = false;
 		  TransID tid = flatFS.beginTrans();
 		  try {
@@ -79,9 +79,10 @@ public class FlatFSUnit {
 			  pass = false;
 		  }
 		  if(pass)
-			  System.out.println("testGetParam: Passed!");
+			  System.out.println("Test abort transaction: Passed!");
 		  else
-			  System.out.println("testGetParam: Failed!");
+			  System.out.println("Test abort transaction: Failed!");
+//		  flatFS.abortTrans(tid);
 		  return pass;
 	  }
 	  /////////////////////
@@ -92,50 +93,55 @@ public class FlatFSUnit {
 			  	int inode = flatFS.createFile(tid);
 			  	flatFS.deleteFile(tid,inode);
 			  	pass = true;
+			  	flatFS.abortTrans(tid);
 		  }
 		  catch(IOException e){
 			  e.printStackTrace();
 			  pass = false;
 		  }
 		  if(pass)
-			  System.out.println("testGetParam: Passed!");
+			  System.out.println("file creation and deletion in FlatFS: Passed!");
 		  else
-			  System.out.println("testGetParam: Failed!");
+			  System.out.println("file creation and deletion in FlatFS: Failed!");
+		  
 		  return pass;
 	  } 
 	  /////////////////////
 	  public static boolean testReadFileMetadata() {
 		  boolean pass = false;
 		  try{
-			  flatFS.getParam(FlatFS.ASK_MAX_FILE);
-			  flatFS.getParam(FlatFS.ASK_FREE_FILES);
-			  flatFS.getParam(FlatFS.ASK_FREE_SPACE_BLOCKS);
-			  flatFS.getParam(FlatFS.ASK_FILE_METADATA_SIZE);
+			  TransID tid = flatFS.beginTrans();
+			  int tnum = flatFS.createFile(tid);
+			  byte buffer[] = new byte[FlatFS.ASK_FILE_METADATA_SIZE];
+			  for (int i=0;i<buffer.length;i++){
+				  buffer[i]=(byte)i;
+			  }
+			  flatFS.writeFileMetadata( tid, tnum, buffer);
+			  byte buffer2[] =new byte[PTree.METADATA_SIZE];
+			  flatFS.readFileMetadata(tid,tnum,buffer2);
+			  assert(Arrays.equals(buffer,buffer2));
 			  pass = true;
+			  flatFS.abortTrans(tid);
 		  }
 		  catch(IOException e){
 			  e.printStackTrace();
 			  pass = false;
 		  }
 		  if(pass)
-			  System.out.println("testGetParam: Passed!");
+			  System.out.println("testReadFileMetadata: Passed!");
 		  else
-			  System.out.println("testGetParam: Failed!");
+			  System.out.println("testReadFileMetadata: Failed!");
+		  
 		  return pass;
 	  }
 	  /////////////////////
 	  public static boolean testGetParam() {
 		  boolean pass = false;
 		  try{
-			  TransID tid = flatFS.beginTrans();
-			  int tnum = flatFS.createFile(tid);
-			  byte buffer[] = new byte[FlatFS.ASK_FILE_METADATA_SIZE];
-			  for (int i=0;i<buffer.length;i++){
-				  buffer[i]=(byte)i;}
-			  flatFS.writeFileMetadata( tid, tnum, buffer);
-			  byte buffer2[] =new byte[PTree.METADATA_SIZE];
-			  flatFS.readFileMetadata(tid,tnum,buffer2);
-			  assert(Arrays.equals(buffer,buffer2));
+			  flatFS.getParam(FlatFS.ASK_MAX_FILE);
+			  flatFS.getParam(FlatFS.ASK_FREE_FILES);
+			  flatFS.getParam(FlatFS.ASK_FREE_SPACE_BLOCKS);
+			  flatFS.getParam(FlatFS.ASK_FILE_METADATA_SIZE);
 			  pass = true;
 		  }
 		  catch(IOException e){

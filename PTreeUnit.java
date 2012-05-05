@@ -3,7 +3,7 @@ import java.util.Arrays;
 //import java.util.Arrays;
 
 public class PTreeUnit {
-//	private static ADisk disk;
+	//public TransID xid;
 	private static PTree ptree;
 	  	
 	  public static void main(String args[]) throws IllegalArgumentException, IOException
@@ -33,19 +33,23 @@ public class PTreeUnit {
 			  failcount++;
 		  
 		  //Testing write Data more intensely 
-		  if(testWriteDataHard())
+//		  if(testWriteDataHard())
+//			  passcount++;
+//		  else
+//			  failcount++;
+		  
+		  if(testWriteandReadTreeMetadata())
 			  passcount++;
 		  else
 			  failcount++;
 		  
-		
 		
 		System.out.println("\nPassed: " + passcount + " Failed: " + failcount);		
 		System.exit(0);
 	  }
 	  
 	  ////////////////////////Start tests////////////////////////////////////
-	  public static boolean testCommit() {
+	  public static boolean testCommit() throws IllegalArgumentException, IOException {
 		  boolean pass = false; 
 		  //Transaction temp = new Transaction(disk);
 		  TransID tid = ptree.beginTrans();
@@ -61,6 +65,7 @@ public class PTreeUnit {
 			  System.out.println("Test Commit: Passed!");
 		  else
 			  System.out.println("Test Commit: Failed!");
+		  //ptree.abortTrans(tid);
 		  return pass; 
 
 	  }
@@ -116,6 +121,7 @@ public class PTreeUnit {
 			  System.out.println("Test Tree Creation write, read & compare: Failed!");
 			  pass = false;
 		  }
+		  ptree.abortTrans(tid);
 		  return pass;
 	  }
 	  ///////////////
@@ -153,35 +159,54 @@ public class PTreeUnit {
 			  pass = false;
 		  }
 		  if(pass)
-			  System.out.println("testGetParam: Passed!");
+			  System.out.println("testWriteDataHard: Passed!");
 		  else
-			  System.out.println("testGetParam: Failed!");
+			  System.out.println("testWriteDataHard: Failed!");
 		  return pass;
 	  }
 	  ////////////////
-	  public static boolean testWriteandReadTreeMetadata(){
+	  public static boolean testWriteandReadTreeMetadata() throws IllegalArgumentException, IOException{
 		  boolean pass = false;
-		  try{
-			  TransID tid = ptree.beginTrans();
-			  int tnum = ptree.createTree(tid);
-			  byte buffer[] = new byte[PTree.METADATA_SIZE];
-			  for (int i=0;i<buffer.length;i++){
-				  buffer[i]=(byte)i;
-			  }
-			  ptree.writeTreeMetadata( tid, tnum, buffer);
-			  byte buffer2[] =new byte[PTree.METADATA_SIZE];
-			  ptree.readTreeMetadata(tid,tnum,buffer2);
-			  assert(Arrays.equals(buffer,buffer2));
+		// Make some byte[]s
+          byte [] r1 = new byte[PTree.METADATA_SIZE];
+          byte [] r2 = new byte[PTree.METADATA_SIZE];
+          byte [] r3 = new byte[PTree.METADATA_SIZE];
+          r1[0] = 10;
+          r2[0] = 20;
+          r3[0] = 30;
+          
+          // Stuff them in three trees
+          
+          TransID xid = ptree.beginTrans();
+          int tnum1 = ptree.createTree(xid);
+          ptree.writeTreeMetadata(xid, tnum1, r1);
+          ptree.commitTrans(xid);
+          
+          xid = ptree.beginTrans();
+          int tnum2 = ptree.createTree(xid);
+          ptree.writeTreeMetadata(xid, tnum2, r2);
+          int tnum3 = ptree.createTree(xid);
+          ptree.writeTreeMetadata(xid, tnum3, r3);
+          ptree.commitTrans(xid);
+
+          // Now read back
+          byte [] a1 = new byte[PTree.METADATA_SIZE];
+          byte [] a2 = new byte[PTree.METADATA_SIZE];
+          byte [] a3 = new byte[PTree.METADATA_SIZE];
+          xid = ptree.beginTrans();
+          
+          ptree.readTreeMetadata(xid, tnum1, a1);
+          ptree.readTreeMetadata(xid, tnum2, a2);
+          ptree.readTreeMetadata(xid, tnum3, a3);
+          
+          if(Arrays.equals(a1, r1) && Arrays.equals(a2, r2) && Arrays.equals(a3, r3)){
+        	  ptree.commitTrans(xid);
+			  System.out.println("Test Read/Write metadata works: Passed!");
 			  pass = true;
-		  }
-		  catch(IOException e){
-			  e.printStackTrace();
-			  pass = false;
-		  }
-		  if(pass)
-			  System.out.println("testGetParam: Passed!");
+          }
 		  else
-			  System.out.println("testGetParam: Failed!");
+			  System.out.println("Test Read/Write metadata: Failed!");
+          ptree.abortTrans(xid);
 		  return pass;
 	  }
 	  ///////////////
