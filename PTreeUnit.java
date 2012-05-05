@@ -33,16 +33,20 @@ public class PTreeUnit {
 			  failcount++;
 		  
 		  //Testing write Data more intensely 
-//		  if(testWriteDataHard())
-//			  passcount++;
-//		  else
-//			  failcount++;
+		  if(testWriteDataHard())
+			  passcount++;
+		  else
+			  failcount++;
 		  
 		  if(testWriteandReadTreeMetadata())
 			  passcount++;
 		  else
 			  failcount++;
 		  
+		  if(testGetMaxBlockId())
+			  passcount++;
+		  else
+			  failcount++;
 		
 		System.out.println("\nPassed: " + passcount + " Failed: " + failcount);		
 		System.exit(0);
@@ -73,16 +77,21 @@ public class PTreeUnit {
 	  /////////////
 	  public static boolean testGetParam() {
 		  boolean pass = false;
+		  int temp1 = 0;
+		  int temp2 = 0;
+		  int temp3 = 0;
 		  try{
-			  ptree.getParam(PTree.ASK_MAX_TREES);
-			  ptree.getParam(PTree.ASK_FREE_SPACE);
-			  ptree.getParam(PTree.ASK_FREE_TREES);
+			  temp1 = ptree.getParam(PTree.ASK_MAX_TREES);
+			  temp2 = ptree.getParam(PTree.ASK_FREE_SPACE);
+			  temp3 = ptree.getParam(PTree.ASK_FREE_TREES);
 			  pass = true;
 		  }
 		  catch(IOException e){
 			  e.printStackTrace();
 			  pass = false;
 		  }
+		  if(temp1 != 512 || temp2 != 15359 || temp3 != 512)
+			  pass = false; 
 		  if(pass)
 			  System.out.println("testGetParam: Passed!");
 		  else
@@ -125,7 +134,7 @@ public class PTreeUnit {
 		  return pass;
 	  }
 	  ///////////////
-	  public static boolean testWriteDataHard(){
+	  public static boolean testWriteDataHard() throws IllegalArgumentException, IOException{
 		  boolean pass = false;
 		  TransID tid = ptree.beginTrans();
 		  int tnum = -1;
@@ -142,9 +151,10 @@ public class PTreeUnit {
 		  for(int i=0;i<buffer.length;i++){
 			  buffer[i]=(byte)i;
 		  }
+		  int blockId = 0;
 
 		  try{
-			  int blockId = 0;
+			  blockId = 0;
 			  ptree.writeData(tid, tnum, blockId, buffer);
 			  blockId = 1000;
 			  ptree.writeData(tid,tnum,blockId,buffer);
@@ -158,6 +168,15 @@ public class PTreeUnit {
 			  e.printStackTrace();
 			  pass = false;
 		  }
+		  byte[] temp1 = new byte[PTree.BLOCK_SIZE_BYTES];
+		  byte[] temp2 = new byte[PTree.BLOCK_SIZE_BYTES];
+		  byte[] temp3 = new byte[PTree.BLOCK_SIZE_BYTES];
+		  ptree.readData(tid, tnum, blockId, temp1);
+		  ptree.readData(tid, tnum, blockId, temp2);
+		  ptree.readData(tid, tnum, blockId, temp3);
+		  if(!Arrays.equals(buffer, temp1) || !Arrays.equals(buffer, temp2) || !Arrays.equals(buffer, temp3) )
+			  pass = false; 
+		  ptree.commitTrans(tid);
 		  if(pass)
 			  System.out.println("testWriteDataHard: Passed!");
 		  else
@@ -210,25 +229,25 @@ public class PTreeUnit {
 	  }
 	  ///////////////
 	  	
-//	  public static boolean testGetMaxBlockId() throws IllegalArgumentException, ResourceException, IOException {
-//		  boolean pass = false;
-//		  TransID tid = ptree.beginTrans();
-//		  int tnum = ptree.createTree(tid);
-//		  ptree.writeData(tid, tnum, 5, new byte[PTree.BLOCK_SIZE_BYTES]);
-//		  ptree.commitTrans(tid);
-//		  tid = ptree.beginTrans();
-//		  ptree.writeData(tid, tnum, 417, new byte[PTree.BLOCK_SIZE_BYTES]);
-//		  assert(ptree.getMaxDataBlockId(tid, tnum) == 417);
-//		  if(ptree.getMaxDataBlockId(tid, tnum) == 417){
-//			  System.out.println("Test Tree Creation: Passed!");
-//			  pass = true;
-//		  }
-//		  else{
-//			  System.out.println("Test Tree Creation: Failed!");
-//			  pass = false;
-//		  }
-//		  return pass;
-//	  }
+	  public static boolean testGetMaxBlockId() throws IllegalArgumentException, ResourceException, IOException {
+		  boolean pass = false;
+		  TransID tid = ptree.beginTrans();
+		  int tnum = ptree.createTree(tid);
+		  ptree.writeData(tid, tnum, 5, new byte[PTree.BLOCK_SIZE_BYTES]);
+		  ptree.commitTrans(tid);
+		  tid = ptree.beginTrans();
+		  ptree.writeData(tid, tnum, 417, new byte[PTree.BLOCK_SIZE_BYTES]);
+		  assert(ptree.getMaxDataBlockId(tid, tnum) == 417);
+		  if(ptree.getMaxDataBlockId(tid, tnum) == 417){
+			  System.out.println("Test Tree Creation: Passed!");
+			  pass = true;
+		  }
+		  else{
+			  System.out.println("Test Tree Creation: Failed!");
+			  pass = false;
+		  }
+		  return pass;
+	  }
 	  
 	  /////////////////////////END TESTS/////////////////////////////////
 }

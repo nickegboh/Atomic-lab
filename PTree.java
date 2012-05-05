@@ -578,7 +578,7 @@ public class PTree{
   {
           if (param == ASK_FREE_SPACE) {
               //free blocks * bytes per block
-              return freeSectors.getFreeSectors() * BLOCK_SIZE_BYTES;
+              return freeSectors.getFreeSectors();
           } 
           else if (param == ASK_FREE_TREES) {
               //check the TNum list
