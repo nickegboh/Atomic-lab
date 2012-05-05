@@ -8,6 +8,7 @@
  *
  */
 
+//import java.io.*;
 import java.io.IOException;
 import java.io.EOFException;
 public class FlatFS{
@@ -18,20 +19,15 @@ public class FlatFS{
   public static final int ASK_FILE_METADATA_SIZE = 3502;
   
   public PTree ptree;
-  public TransID tid;
+  public static final byte EOF = (byte)28;
 
   /* This function is the constructor. If doFormat == false, data 
    * stored in previous sessions must remain stored. If doFormat == true, 
    * the system should initialize the underlying disk to empty. 
    */
-  public FlatFS(boolean doFormat)throws IOException		//TODO
+  public FlatFS(boolean doFormat)throws IOException		
   {
-	  if(doFormat == true){
-		  
-	  }
-	  else{
-		  
-	  }
+	  this.ptree = new PTree(doFormat);
   }
 
   /* This function begins a new transaction and returns an 
@@ -62,9 +58,9 @@ public class FlatFS{
    * inode number (a unique identifier for the file) 
    */
   public int createFile(TransID xid)
-    throws IOException, IllegalArgumentException		//TODO
+    throws IOException, IllegalArgumentException		
   {
-    return -1;
+	  return ptree.createTree(xid); 
   }
 
   /* This function removes the file specified by the inode 
@@ -72,8 +68,9 @@ public class FlatFS{
    * corresponding resources are reclaimed. 
    */
   public void deleteFile(TransID xid, int inumber)
-    throws IOException, IllegalArgumentException		//TODO
+    throws IOException, IllegalArgumentException		
   {
+	  ptree.deleteTree(xid, inumber);
   }
 
   /* This function reads count bytes from the file specified by inumber  into the 
@@ -84,9 +81,22 @@ public class FlatFS{
    * the end of the file.
    */
   public int read(TransID xid, int inumber, int offset, int count, byte buffer[])
-    throws IOException, IllegalArgumentException, EOFException	//TODO
+    throws IOException, IllegalArgumentException, EOFException
   {
-    return -1;
+	  int startBlock = offset / PTree.BLOCK_SIZE_BYTES + (offset % PTree.BLOCK_SIZE_BYTES != 0 ? 1 : 0);
+	  int filler = count / PTree.BLOCK_SIZE_BYTES + (count % PTree.BLOCK_SIZE_BYTES != 0 ? 1 : 0);
+	  byte[][] blocks = new byte[filler][PTree.BLOCK_SIZE_BYTES];
+	  if (startBlock > ptree.getMaxDataBlockId(xid, inumber))
+	  throw new EOFException();
+	  for(int i = 0; i < blocks.length; i++)
+		  ptree.readData(xid, inumber, startBlock+i, blocks[i]);
+
+	  for (int i = 0; i < count; i++) {
+		  buffer[i] = blocks[i/PTree.BLOCK_SIZE_BYTES][i%PTree.BLOCK_SIZE_BYTES];
+		  if (buffer[i] == EOF)
+			  return i+1;
+	  }
+	  return count;
   }
     
   /* This function writes count bytes from the buffer specified by buffer into the file 
@@ -95,8 +105,16 @@ public class FlatFS{
    * file should extend the size of the file to accommodate the new data. 
    */
   public void write(TransID xid, int inumber, int offset, int count, byte buffer[])
-    throws IOException, IllegalArgumentException			//TODO
+    throws IOException, IllegalArgumentException
   {
+	  int startBlock = offset / PTree.BLOCK_SIZE_BYTES + (offset % PTree.BLOCK_SIZE_BYTES != 0 ? 1 : 0);
+	  int filler = count / PTree.BLOCK_SIZE_BYTES + (count % PTree.BLOCK_SIZE_BYTES != 0 ? 1 : 0);
+	  byte[][] blocks = new byte[filler][PTree.BLOCK_SIZE_BYTES];
+	  for (int i =0; i < buffer.length; i++) {
+		  blocks[i/PTree.BLOCK_SIZE_BYTES][i%PTree.BLOCK_SIZE_BYTES] = buffer[i];
+	  }
+	  for (int i = 0; i < blocks.length; i++)
+		  ptree.writeData(xid, inumber, startBlock + i, blocks[i]);
   }
   
   /* This function reads getParam(ASK_FILE_METADATA_SIZE) bytes of per-file metadata 
@@ -126,10 +144,19 @@ public class FlatFS{
    * currently has), and FlatFS.ASK_FILE_METADATA_SIZE (to ask how much space there is for 
    * per-file metadata).  It returns an integer answer to the question
    */
-  public int getParam(int param)							//TODO
+  public int getParam(int param)							
     throws IOException, IllegalArgumentException
   {
-    return -1;
+	  if (param == ASK_MAX_FILE)
+		     return ptree.getParam(PTree.ASK_FREE_TREES);
+	  else if (param == ASK_FILE_METADATA_SIZE)
+		     return ptree.METADATA_SIZE;
+	  else if (param == ASK_FREE_FILES)
+		     return ptree.getParam(PTree.ASK_FREE_TREES);
+	  else if (param == ASK_FREE_SPACE_BLOCKS)
+		     return ptree.getParam(PTree.ASK_FREE_SPACE);
+	  else
+		     throw new IllegalArgumentException();
   }
     
 

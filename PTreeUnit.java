@@ -3,7 +3,7 @@ import java.util.Arrays;
 //import java.util.Arrays;
 
 public class PTreeUnit {
-	private static ADisk disk;
+//	private static ADisk disk;
 	private static PTree ptree;
 	  	
 	  public static void main(String args[]) throws IllegalArgumentException, IOException
@@ -26,16 +26,17 @@ public class PTreeUnit {
 		  else
 			  failcount++;
 		  
-		  //Testing tree creation in Ptree
+		  //Testing tree creation, write & read data in Ptree
 		  if(testTree())
 			  passcount++;
 		  else
 			  failcount++;
 		  
-//		  if(testcreat_killTree())
-//			  passcount++;
-//		  else
-//			  failcount++;
+		  //Testing write Data more intensely 
+		  if(testWriteDataHard())
+			  passcount++;
+		  else
+			  failcount++;
 		  
 		
 		
@@ -97,7 +98,7 @@ public class PTreeUnit {
 			  e.printStackTrace();
 			  pass = false;
 		  }
-		  int blockId = 7;
+		  int blockId = 573;
 		  byte[] buffer = new byte[PTree.BLOCK_SIZE_BYTES];
 		  for(int i=0; i<buffer.length; i++){
 			  buffer[i] = (byte)i;
@@ -108,23 +109,43 @@ public class PTreeUnit {
 		  ptree.readData(tid, tnum, blockId, buffer2);
 		  assert(Arrays.equals(buffer, buffer2));
 		  if(Arrays.equals(buffer, buffer2)){
-			  System.out.println("Test Tree Creation: Passed!");
+			  System.out.println("Test Tree Creation write, read & compare: Passed!");
 			  pass = true;
 		  }
 		  else{
-			  System.out.println("Test Tree Creation: Failed!");
+			  System.out.println("Test Tree Creation write, read & compare: Failed!");
 			  pass = false;
 		  }
 		  return pass;
 	  }
-	  
 	  ///////////////
-	  public static boolean testcreat_killTree(){
+	  public static boolean testWriteDataHard(){
 		  boolean pass = false;
 		  TransID tid = ptree.beginTrans();
+		  int tnum = -1;
 		  try{
-			  int tnum = ptree.createTree(tid);
-			  ptree.deleteTree(tid, tnum);
+			  tnum = ptree.createTree(tid);
+		  }
+		  catch(IOException e){
+			  e.printStackTrace();
+			  pass = false;
+		  }
+
+
+		  byte[] buffer = new byte[PTree.BLOCK_SIZE_BYTES];
+		  for(int i=0;i<buffer.length;i++){
+			  buffer[i]=(byte)i;
+		  }
+
+		  try{
+			  int blockId = 0;
+			  ptree.writeData(tid, tnum, blockId, buffer);
+			  blockId = 1000;
+			  ptree.writeData(tid,tnum,blockId,buffer);
+			  ptree.commitTrans(tid);
+			  tid = ptree.beginTrans();
+			  blockId=500;
+			  ptree.writeData(tid,tnum,blockId,buffer);
 			  pass = true;
 		  }
 		  catch(IOException e){
@@ -132,12 +153,58 @@ public class PTreeUnit {
 			  pass = false;
 		  }
 		  if(pass)
-			  System.out.println("Test Tree Creation: Passed!");
+			  System.out.println("testGetParam: Passed!");
 		  else
-			  System.out.println("Test Tree Creation: Failed!");
+			  System.out.println("testGetParam: Failed!");
 		  return pass;
+	  }
+	  ////////////////
+	  public static boolean testWriteandReadTreeMetadata(){
+		  boolean pass = false;
+		  try{
+			  TransID tid = ptree.beginTrans();
+			  int tnum = ptree.createTree(tid);
+			  byte buffer[] = new byte[PTree.METADATA_SIZE];
+			  for (int i=0;i<buffer.length;i++){
+				  buffer[i]=(byte)i;
+			  }
+			  ptree.writeTreeMetadata( tid, tnum, buffer);
+			  byte buffer2[] =new byte[PTree.METADATA_SIZE];
+			  ptree.readTreeMetadata(tid,tnum,buffer2);
+			  assert(Arrays.equals(buffer,buffer2));
+			  pass = true;
 		  }
+		  catch(IOException e){
+			  e.printStackTrace();
+			  pass = false;
+		  }
+		  if(pass)
+			  System.out.println("testGetParam: Passed!");
+		  else
+			  System.out.println("testGetParam: Failed!");
+		  return pass;
+	  }
+	  ///////////////
 	  	
+//	  public static boolean testGetMaxBlockId() throws IllegalArgumentException, ResourceException, IOException {
+//		  boolean pass = false;
+//		  TransID tid = ptree.beginTrans();
+//		  int tnum = ptree.createTree(tid);
+//		  ptree.writeData(tid, tnum, 5, new byte[PTree.BLOCK_SIZE_BYTES]);
+//		  ptree.commitTrans(tid);
+//		  tid = ptree.beginTrans();
+//		  ptree.writeData(tid, tnum, 417, new byte[PTree.BLOCK_SIZE_BYTES]);
+//		  assert(ptree.getMaxDataBlockId(tid, tnum) == 417);
+//		  if(ptree.getMaxDataBlockId(tid, tnum) == 417){
+//			  System.out.println("Test Tree Creation: Passed!");
+//			  pass = true;
+//		  }
+//		  else{
+//			  System.out.println("Test Tree Creation: Failed!");
+//			  pass = false;
+//		  }
+//		  return pass;
+//	  }
 	  
 	  /////////////////////////END TESTS/////////////////////////////////
 }

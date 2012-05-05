@@ -230,7 +230,7 @@ public class PTree{
    * number tnum. The tree is deleted and the corresponding 
    * resources are reclaimed.
    */
-  public void deleteTree(TransID xid, int tnum) 	//TODO
+  public void deleteTree(TransID xid, int tnum) 	
     throws IOException, IllegalArgumentException
   {
 	  try{
@@ -819,4 +819,3 @@ public class PTree{
 
   /////////////////////////////////////////END HELPERS//////////////////////////////////////////////////////////////////////////
 }
-
