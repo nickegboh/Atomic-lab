@@ -206,7 +206,6 @@ public class PTreeUnit {
           }
 		  else
 			  System.out.println("Test Read/Write metadata: Failed!");
-          ptree.abortTrans(xid);
 		  return pass;
 	  }
 	  ///////////////

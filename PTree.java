@@ -207,7 +207,7 @@ public class PTree{
 		  b.putInt(TNum); // put tnode number at top of tnode sector
 		  b.putInt(0); //put tree max seen id
 		  //reserve space for meta data 
-		  for(int i = 0; i < (METADATA_SIZE / 8 / 2); i++)
+		  for(int i = 0; i < (METADATA_SIZE / 2); i++)
 			  b.putChar((char)0x00);
 		  //reserve space for block pointers.  ie one block for every tnode pointer one pointer for each sector in block. 
 		  for(int i = 0; i < (TNODE_POINTERS * (BLOCK_SIZE_BYTES / Disk.SECTOR_SIZE)); i++)
@@ -513,7 +513,8 @@ public class PTree{
 		  int TnodeSector = getTnodePointer(xid, tnum);
 		  byte[] temp = new byte[Disk.SECTOR_SIZE];
 		  d.readSector(xid, TnodeSector, temp);
-		  System.arraycopy(buffer, 0, temp, 8, METADATA_SIZE);		  
+		  System.arraycopy(buffer, 0, temp, 8, METADATA_SIZE);
+		  d.writeSector(xid, TnodeSector, temp);
 	  }
 	  finally{
 		  Ptree_lock.unlock();
@@ -620,7 +621,7 @@ public class PTree{
 	  byte[] pointer = intToByteArray(tnodePointer);
 	  //calculate sector tnode is in
 	  int SectorNum = (tnode * 4) / Disk.SECTOR_SIZE;
-	  int SectorOffset = (tnode * 4) / Disk.SECTOR_SIZE;
+	  int SectorOffset = (tnode * 4) % Disk.SECTOR_SIZE;
 	  //read appropriate sector
 	  if(this.currentTNodeListI != SectorNum){
 		d.readSector(tid, SectorNum, currentTNodeList);
@@ -637,7 +638,7 @@ public class PTree{
   	throws IllegalArgumentException, IndexOutOfBoundsException, IOException{
 	//calculate sector tnode is in
 	int SectorNum = (tnode * 4) / Disk.SECTOR_SIZE;
-	int SectorOffset = (tnode * 4) / Disk.SECTOR_SIZE;
+	int SectorOffset = (tnode * 4) % Disk.SECTOR_SIZE;
 	//read appropriate sector
     if(this.currentTNodeListI != SectorNum){
 			d.readSector(tid, SectorNum, currentTNodeList);
@@ -716,7 +717,7 @@ public class PTree{
           if(!firstPointer)
                   pointerNum = pointerNum + 2;
           //adjust pointer beyond meta data
-          pointerNum = pointerNum + 8 + (PTree.METADATA_SIZE / 8);
+          pointerNum = pointerNum + 8 + (PTree.METADATA_SIZE);
           d.readSector(tid, nodePointer, inode);
           System.arraycopy(inode, pointerNum, result, 0, 2);
           return byteArraytoShort(result);
@@ -731,7 +732,7 @@ public class PTree{
           if(!firstPointer)
                   pointerNum = pointerNum + 2;
           //adjust pointer beyond meta data
-          pointerNum = pointerNum + 8 + (PTree.METADATA_SIZE / 8);
+          pointerNum = pointerNum + 8 + (PTree.METADATA_SIZE);
           d.readSector(tid, nodePointer, inode);
           System.arraycopy(toWrite, 0, inode, pointerNum, 2);
           d.writeSector(tid, nodePointer, inode);
