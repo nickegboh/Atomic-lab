@@ -194,7 +194,13 @@ public class RFS{
 			  }
 			  //remove file
 			  fileManager.deleteFile(transid, tempInum);
-			  tempDirectory.remove(names[i].toCharArray());				  
+			  tempDirectory.remove(names[i].toCharArray());
+			  //write updated parent to disk 
+			  byte[] metaData = tempDirectory.getMetaData();
+			  byte[] directory = tempDirectory.toByteArray();
+			  fileManager.write(transid, tempDirectory.getInum(), 0, directory.length, directory);
+			  fileManager.writeFileMetadata(transid, tempDirectory.getInum(), metaData);
+			  fileManager.commitTrans(transid);		
 		  }
 		  else{
 			  // go to next level of file system tree
@@ -251,6 +257,13 @@ public class RFS{
 			  }
 			  //rename file
 			  tempDirectory.renameFile(names[i].toCharArray(), NewNames[i].toCharArray());
+			  //write updated parent to disk 
+			  byte[] metaData = tempDirectory.getMetaData();
+			  byte[] directory = tempDirectory.toByteArray();
+			  fileManager.write(transid, tempDirectory.getInum(), 0, directory.length, directory);
+			  fileManager.writeFileMetadata(transid, tempDirectory.getInum(), metaData);
+			  fileManager.commitTrans(transid);		
+			  //create new directory
 		  }
 		  else{
 			  // go to next level of file system tree
