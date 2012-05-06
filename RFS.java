@@ -9,6 +9,7 @@
  */
 import java.io.IOException;
 import java.io.EOFException;
+import java.util.ArrayList;
 public class RFS{
    private int[] FileDescriptors;
    private TransID[] FileDescriptor_TID;
@@ -200,12 +201,13 @@ public class RFS{
   
   /*
    * This function atomically changes the name of an existing file oldName into a 
-   * new file newName
+   * new file newName.  Assumes same directory. 
    */
   public void rename(String oldName, String newName)
     throws IOException, IllegalArgumentException
   {
-	  String[] names = seperatePath(filename);
+	  String[] names = seperatePath(oldName);
+	  String[] NewNames = seperatePath(newName);	  
 	  
 	  //read root node
 	  TransID transid = fileManager.beginTrans();
@@ -234,7 +236,7 @@ public class RFS{
 				  return;
 			  }
 			  //rename file
-			  tempDirectory.renameFile(oldName.toCharArray(), newName.toCharArray());
+			  tempDirectory.renameFile(names[i].toCharArray(), NewNames[i].toCharArray());
 		  }
 		  else{
 			  // go to next level of file system tree
@@ -420,6 +422,10 @@ public class RFS{
     throws IOException, IllegalArgumentException
   {
 	return fileManager.ptree.getMaxDataBlockId(FileDescriptor_TID[fd], FileDescriptors[fd]);
+  }
+  
+  private String[] seperatePath(String filename){
+	  return filename.substring(1).split("/");
   }
 
 
