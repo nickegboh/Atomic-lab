@@ -36,10 +36,15 @@ public class FlatFSUnit {
 			  failcount++;
 		  
 		  //Testing if file metadata can be read
-//		  if(testReadFileMetadata())
-//			  passcount++;
-//		  else
-//			  failcount++;
+		  if(testReadFileMetadata())
+			  passcount++;
+		  else
+			  failcount++;
+		  
+		  if(testReadANDWriteFile())
+			  passcount++;
+		  else
+			  failcount++;
 
 		
 		System.out.println("\nPassed: " + passcount + " Failed: " + failcount);		
@@ -154,5 +159,56 @@ public class FlatFSUnit {
 			  System.out.println("testGetParam: Failed!");
 		  return pass;
 	  }
+	  ///////////////////////
+	  public static boolean testReadANDWriteFile() throws IllegalArgumentException, IOException {
+		  boolean pass = false;
+		  TransID tid = flatFS.beginTrans();
+		  int tnum = -1;
+		  try{
+			  tnum = flatFS.createFile(tid);
+		  }
+		  catch(IOException e){
+			  e.printStackTrace();
+			  pass = false;
+		  }
+
+
+		  byte[] buffer = new byte[PTree.BLOCK_SIZE_BYTES];
+		  for(int i=0;i<buffer.length;i++){
+			  buffer[i]=(byte)i;
+			  if (i == 6)
+				  break;
+		  }
+		  int blockId = 0;
+		  try{
+			 
+			  flatFS.write(tid, tnum, blockId, 6, buffer);
+			  blockId = 1000;
+			  flatFS.write(tid,tnum,blockId, 6,buffer);
+			  flatFS.commitTrans(tid);
+			  tid = flatFS.beginTrans();
+			  blockId=500;
+			  flatFS.write(tid,tnum,blockId, 6,buffer);
+			  pass = true;
+		  }
+		  catch(IOException e){
+			  e.printStackTrace();
+			  pass = false;
+		  }
+		  byte[] temp1 = new byte[PTree.BLOCK_SIZE_BYTES];
+		  byte[] temp2 = new byte[PTree.BLOCK_SIZE_BYTES];
+		  byte[] temp3 = new byte[PTree.BLOCK_SIZE_BYTES];
+		  flatFS.read(tid, tnum, blockId, 7, temp1);
+		  flatFS.read(tid, tnum, blockId, 7, temp2);
+		  flatFS.read(tid, tnum, blockId, 7, temp3);
+		  if(!Arrays.equals(buffer, temp1) || !Arrays.equals(buffer, temp2) || !Arrays.equals(buffer, temp3) )
+			  pass = false; 
+		  flatFS.commitTrans(tid);
+		  if(pass)
+			  System.out.println("testWriteDataHard: Passed!");
+		  else
+			  System.out.println("testWriteDataHard: Failed!");
+		  return pass;
+	  } 
 
 }

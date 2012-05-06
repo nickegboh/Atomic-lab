@@ -87,7 +87,7 @@ public class FlatFS{
 	  int filler = count / PTree.BLOCK_SIZE_BYTES + (count % PTree.BLOCK_SIZE_BYTES != 0 ? 1 : 0);
 	  byte[][] blocks = new byte[filler][PTree.BLOCK_SIZE_BYTES];
 	  if (startBlock > ptree.getMaxDataBlockId(xid, inumber))
-	  throw new EOFException();
+		  throw new EOFException();
 	  for(int i = 0; i < blocks.length; i++)
 		  ptree.readData(xid, inumber, startBlock+i, blocks[i]);
 
@@ -144,7 +144,8 @@ public class FlatFS{
    * currently has), and FlatFS.ASK_FILE_METADATA_SIZE (to ask how much space there is for 
    * per-file metadata).  It returns an integer answer to the question
    */
-  public int getParam(int param)							
+  @SuppressWarnings("static-access")
+public int getParam(int param)							
     throws IOException, IllegalArgumentException
   {
 	  if (param == ASK_MAX_FILE)
