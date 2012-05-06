@@ -10,7 +10,9 @@
 import java.io.IOException;
 import java.io.EOFException;
 public class RFS{
-
+   private int[] FileDescriptors;
+   private TransID[] FileDescriptor_TID;
+   private FlatFS fileManager; 
   /*
    * This function is the constructor. If doFormat == false, data stored in previous 
    * sessions must remain stored. If doFormat == true, the system should initialize 
@@ -19,6 +21,21 @@ public class RFS{
   public RFS(boolean doFormat)
     throws IOException
   {
+	  fileManager = new FlatFS(doFormat);
+	  FileDescriptors = new int[Common.MAX_FD+1];
+	  FileDescriptor_TID = new TransID[Common.MAX_FD+1];
+	  for(int i = 0; i < FileDescriptors.length; i++)
+		  FileDescriptors[i] = -1;
+	  if(doFormat){
+		  TransID tempID = fileManager.beginTrans();
+		  int tempInode = fileManager.createFile(tempID);
+		  char[] rootName = {'r','o','o','t'};
+		  DirEnt root = new DirEnt(tempInode, rootName, tempInode);
+		  byte[] metaData = root.getMetaData();
+		  byte[] directory = root.toByteArray();
+		  fileManager.write(tempID, tempInode, 0, directory.length, directory);
+		  fileManager.writeFileMetadata(tempID, tempInode, metaData);
+	 }
   }
   
   /*
@@ -28,9 +45,47 @@ public class RFS{
    *   in this case, the initial create(), a sequence of zero or more read() and write()
    *    calls to that file, and a final close() should all occur within a single transaction.
    */
-  public void createFile(String filename, boolean openIt)
+  public int createFile(String filename, boolean openIt)
     throws IOException, IllegalArgumentException
   {
+	  String[] names = seperatePath(filename);
+	  
+	  //read root node
+	  TransID transid = fileManager.beginTrans();
+	  byte[] tempMeta = new byte[PTree.METADATA_SIZE];
+	  fileManager.readFileMetadata(transid, 0, tempMeta);
+	  int templength = DirEnt.getLengthBytes(tempMeta);
+	  byte[] tempBuff = new byte[templength];
+	  fileManager.read(transid, 0, 0, templength, tempBuff);
+	  DirEnt tempDirectory = new DirEnt(tempBuff, tempMeta);
+	  int tempInum = -1;
+	  
+	  for(int i = 0; i < names.length; i++){
+		  char[] thisName = names[i].toCharArray();
+		  if(i == names.length-1){
+			  int tempInode = fileManager.createFile(transid);			  
+			  tempDirectory.addFile(tempInode, names[i].toCharArray());
+			  if(openIt){
+				  fileManager.commitTrans(transid);
+				  return open(filename);
+			  }
+		  }
+		  else{
+			  tempInum = tempDirectory.getInum(thisName);
+			  if(tempInum == -1){
+				  fileManager.commitTrans(transid);
+				  return -1;
+			  }
+			  fileManager.readFileMetadata(transid, tempInum, tempMeta);
+			  templength = DirEnt.getLengthBytes(tempMeta);
+			  tempBuff = new byte[templength];
+			  fileManager.read(transid, 0, 0, templength, tempBuff);
+			  tempDirectory = new DirEnt(tempBuff, tempMeta);
+		  }
+		  
+	  }
+	  fileManager.commitTrans(transid);
+	  return -1;
   }
   
   /*
@@ -40,6 +95,43 @@ public class RFS{
   public void createDir(String dirname)
     throws IOException, IllegalArgumentException
   {
+	  String[] names = seperatePath(dirname);
+	  
+	  //read root node
+	  TransID transid = fileManager.beginTrans();
+	  byte[] tempMeta = new byte[PTree.METADATA_SIZE];
+	  fileManager.readFileMetadata(transid, 0, tempMeta);
+	  int templength = DirEnt.getLengthBytes(tempMeta);
+	  byte[] tempBuff = new byte[templength];
+	  fileManager.read(transid, 0, 0, templength, tempBuff);
+	  DirEnt tempDirectory = new DirEnt(tempBuff, tempMeta);
+	  int tempInum = -1;
+	  
+	  for(int i = 0; i < names.length; i++){
+		  char[] thisName = names[i].toCharArray();
+		  if(i == names.length-1){
+			  int tempInode = fileManager.createFile(transid);
+			  DirEnt newDir = new DirEnt(tempInode, names[i].toCharArray(), tempDirectory.getInum());
+			  byte[] metaData = newDir.getMetaData();
+			  byte[] directory = newDir.toByteArray();
+			  fileManager.write(transid, tempInode, 0, directory.length, directory);
+			  fileManager.writeFileMetadata(transid, tempInode, metaData);
+		  }
+		  else{
+			  tempInum = tempDirectory.getInum(thisName);
+			  if(tempInum == -1){
+				  fileManager.commitTrans(transid);
+				  return;
+			  }
+			  fileManager.readFileMetadata(transid, tempInum, tempMeta);
+			  templength = DirEnt.getLengthBytes(tempMeta);
+			  tempBuff = new byte[templength];
+			  fileManager.read(transid, 0, 0, templength, tempBuff);
+			  tempDirectory = new DirEnt(tempBuff, tempMeta);
+		  }
+		  
+	  }
+	  fileManager.commitTrans(transid);
   }
 
   /*
@@ -51,6 +143,59 @@ public class RFS{
   public void unlink(String filename)
     throws IOException, IllegalArgumentException
   {
+	  String[] names = seperatePath(filename);
+	  
+	  //read root node
+	  TransID transid = fileManager.beginTrans();
+	  byte[] tempMeta = new byte[PTree.METADATA_SIZE];
+	  fileManager.readFileMetadata(transid, 0, tempMeta);
+	  int templength = DirEnt.getLengthBytes(tempMeta);
+	  byte[] tempBuff = new byte[templength];
+	  fileManager.read(transid, 0, 0, templength, tempBuff);
+	  DirEnt tempDirectory = new DirEnt(tempBuff, tempMeta);
+	  int tempInum = -1;
+	  
+	  for(int i = 0; i < names.length; i++){
+		  char[] thisName = names[i].toCharArray();
+		  if(i == names.length-1){
+			  // this is final level of tree
+			  tempInum = tempDirectory.getInum(names[i].toCharArray());
+			  //if file doesn't exist return
+			  if(tempInum == -1){
+				  fileManager.commitTrans(transid);
+				  return;
+			  }
+			  // if file has active file descriptor return 
+			  for(int j = 0; j < FileDescriptors.length; j++)
+				  if(FileDescriptors[j] == tempInum){
+					  fileManager.commitTrans(transid);
+					  return;
+				  }
+			  //if file is directory return 
+			  fileManager.readFileMetadata(transid, tempInum, tempMeta);
+			  if(DirEnt.isDirectory(tempMeta)){
+				  fileManager.commitTrans(transid);
+				  return;
+			  }
+			  //remove file
+			  fileManager.deleteFile(transid, tempInum);
+			  tempDirectory.remove(names[i].toCharArray());				  
+		  }
+		  else{
+			  // go to next level of file system tree
+			  tempInum = tempDirectory.getInum(thisName);
+			  if(tempInum == -1){
+				  fileManager.commitTrans(transid);
+				  return;
+			  }
+			  fileManager.readFileMetadata(transid, tempInum, tempMeta);
+			  templength = DirEnt.getLengthBytes(tempMeta);
+			  tempBuff = new byte[templength];
+			  fileManager.read(transid, 0, 0, templength, tempBuff);
+			  tempDirectory = new DirEnt(tempBuff, tempMeta);
+		  }
+		  
+	  }	  
   }
   
   /*
@@ -60,6 +205,52 @@ public class RFS{
   public void rename(String oldName, String newName)
     throws IOException, IllegalArgumentException
   {
+	  String[] names = seperatePath(filename);
+	  
+	  //read root node
+	  TransID transid = fileManager.beginTrans();
+	  byte[] tempMeta = new byte[PTree.METADATA_SIZE];
+	  fileManager.readFileMetadata(transid, 0, tempMeta);
+	  int templength = DirEnt.getLengthBytes(tempMeta);
+	  byte[] tempBuff = new byte[templength];
+	  fileManager.read(transid, 0, 0, templength, tempBuff);
+	  DirEnt tempDirectory = new DirEnt(tempBuff, tempMeta);
+	  int tempInum = -1;
+	  
+	  for(int i = 0; i < names.length; i++){
+		  char[] thisName = names[i].toCharArray();
+		  if(i == names.length-1){
+			  // this is final level of tree
+			  tempInum = tempDirectory.getInum(names[i].toCharArray());
+			  //if file doesn't exist return
+			  if(tempInum == -1){
+				  fileManager.commitTrans(transid);
+				  return;
+			  }
+			  //if file is directory return 
+			  fileManager.readFileMetadata(transid, tempInum, tempMeta);
+			  if(DirEnt.isDirectory(tempMeta)){
+				  fileManager.commitTrans(transid);
+				  return;
+			  }
+			  //rename file
+			  tempDirectory.renameFile(oldName.toCharArray(), newName.toCharArray());
+		  }
+		  else{
+			  // go to next level of file system tree
+			  tempInum = tempDirectory.getInum(thisName);
+			  if(tempInum == -1){
+				  fileManager.commitTrans(transid);
+				  return;
+			  }
+			  fileManager.readFileMetadata(transid, tempInum, tempMeta);
+			  templength = DirEnt.getLengthBytes(tempMeta);
+			  tempBuff = new byte[templength];
+			  fileManager.read(transid, 0, 0, templength, tempBuff);
+			  tempDirectory = new DirEnt(tempBuff, tempMeta);
+		  }
+		  
+	  }	
   }
 
   /*
@@ -70,11 +261,65 @@ public class RFS{
    * search path. The function fails if name does not specify an existing file, if no file 
    * descriptors are free, or if the name corresponds to a directory. All reads and writes 
    * to the open file are part of a single transaction.
+   * 
+   * If function fails, returns -1.
    */
   public int open(String filename)
     throws IOException, IllegalArgumentException
   {
-    return -1;
+	  String[] names = seperatePath(filename);
+	  
+	  //read root node
+	  TransID transid = fileManager.beginTrans();
+	  byte[] tempMeta = new byte[PTree.METADATA_SIZE];
+	  fileManager.readFileMetadata(transid, 0, tempMeta);
+	  int templength = DirEnt.getLengthBytes(tempMeta);
+	  byte[] tempBuff = new byte[templength];
+	  fileManager.read(transid, 0, 0, templength, tempBuff);
+	  DirEnt tempDirectory = new DirEnt(tempBuff, tempMeta);
+	  int tempInum = -1;
+	  
+	  for(int i = 0; i < names.length; i++){
+		  char[] thisName = names[i].toCharArray();
+		  if(i == names.length-1){
+			  // this is final level of tree
+			  tempInum = tempDirectory.getInum(names[i].toCharArray());
+			  //if file doesn't exist return
+			  if(tempInum == -1){
+				  fileManager.commitTrans(transid);
+				  return -1;
+			  }
+			  //if file is directory return 
+			  fileManager.readFileMetadata(transid, tempInum, tempMeta);
+			  if(DirEnt.isDirectory(tempMeta)){
+				  fileManager.commitTrans(transid);
+				  return -1;
+			  }
+			  //find open file descriptor
+			  int j = 0; 
+			  for(j = 0; j < FileDescriptors.length; j++)
+				  if(FileDescriptors[j] == -1)
+					  break;
+			  //set file descriptor and return file
+			  FileDescriptors[j] = tempInum;
+			  FileDescriptor_TID[j] = transid;
+			  return j;  
+		  }
+		  else{
+			  // go to next level of file system tree
+			  tempInum = tempDirectory.getInum(thisName);
+			  if(tempInum == -1)
+				  return -1;
+			  fileManager.readFileMetadata(transid, tempInum, tempMeta);
+			  templength = DirEnt.getLengthBytes(tempMeta);
+			  tempBuff = new byte[templength];
+			  fileManager.read(transid, 0, 0, templength, tempBuff);
+			  tempDirectory = new DirEnt(tempBuff, tempMeta);
+		  }
+		  
+	  }
+	  fileManager.commitTrans(transid);
+	  return -1;
   }
 
   /*
@@ -86,6 +331,9 @@ public class RFS{
   public void close(int fd)
     throws IOException, IllegalArgumentException
   {
+	  FileDescriptors[fd] = -1; 
+	  fileManager.commitTrans(FileDescriptor_TID[fd]);
+	  return; 
   }
 
   /*
@@ -98,7 +346,7 @@ public class RFS{
   public int read(int fd, int offset, int count, byte buffer[])
     throws IOException, IllegalArgumentException
   {
-    return -1;
+    return fileManager.read(FileDescriptor_TID[fd], FileDescriptors[fd], offset, count, buffer);
   }
 
   /*
@@ -111,6 +359,7 @@ public class RFS{
   public void write(int fd, int offset, int count, byte buffer[])
     throws IOException, IllegalArgumentException
   {
+	  fileManager.write(FileDescriptor_TID[fd], FileDescriptors[fd], offset, count, buffer);
   }
 
   /*
@@ -120,7 +369,37 @@ public class RFS{
   public String[] readDir(String dirname)
     throws IOException, IllegalArgumentException
   {
-    return null;
+	  String[] names = seperatePath(dirname);
+	  
+	  //read root node
+	  TransID transid = fileManager.beginTrans();
+	  byte[] tempMeta = new byte[PTree.METADATA_SIZE];
+	  fileManager.readFileMetadata(transid, 0, tempMeta);
+	  int templength = DirEnt.getLengthBytes(tempMeta);
+	  byte[] tempBuff = new byte[templength];
+	  fileManager.read(transid, 0, 0, templength, tempBuff);
+	  DirEnt tempDirectory = new DirEnt(tempBuff, tempMeta);
+	  int tempInum = -1;
+	  
+	  for(int i = 0; i < names.length; i++){
+		  char[] thisName = names[i].toCharArray();
+		  // go to next level of file system tree
+		  tempInum = tempDirectory.getInum(thisName);
+		  if(tempInum == -1)
+			  return null;
+		  fileManager.readFileMetadata(transid, tempInum, tempMeta);
+		  templength = DirEnt.getLengthBytes(tempMeta);
+		  tempBuff = new byte[templength];
+		  fileManager.read(transid, 0, 0, templength, tempBuff);
+		  tempDirectory = new DirEnt(tempBuff, tempMeta);
+		  // if appropriate directory return contents
+		  if(i == names.length-1){
+			  return tempDirectory.listContents();
+		  }
+		  
+	 }
+	 fileManager.commitTrans(transid);
+	 return null;
   }
 
   /*
@@ -129,7 +408,7 @@ public class RFS{
   public int size(int fd)
     throws IOException, IllegalArgumentException
   {
-    return -1;
+    return (fileManager.ptree.getMaxDataBlockId(FileDescriptor_TID[fd], FileDescriptors[fd])*PTree.BLOCK_SIZE_BYTES);
   }
 
   /*
@@ -140,7 +419,7 @@ public class RFS{
   public int space(int fd)
     throws IOException, IllegalArgumentException
   {
-    return -1;
+	return fileManager.ptree.getMaxDataBlockId(FileDescriptor_TID[fd], FileDescriptors[fd]);
   }
 
 
