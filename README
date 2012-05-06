@@ -5,45 +5,27 @@ Chinedu Egboh  tobe_egboh@mail.utexas.edu  (with permission from Prof. Dahlin fo
 
 SECTION 2:______
 
-New source files for PTree Lab
+New source files for Hierarchical File System Lab
 
-PTree.java: Add a PTree layer on top of ADisk.  Creates shell for storing files on disk. 
+RFS.java: Add a Hierarchial File System layer on tipe of the flat fs.  This allows for files to be written via a path and allows directories to be created.   
 
-PTreeUnit.java:  main method runs tests on PTree.  All tests pass.
+RFSUnit.java:  main method runs tests on rfs.java
 
-freeBitMap.java: maintains a free map for the adisk.  Allows to mark secotors full or empty.  Allows for export as byte array for writing to disk.  Can be constructed from importing a free bit map from disk.  
-
-FlatFS.java:  Adds a flat file system layer on top of the PTree.  This layer allows for large ranges of bytes to be written to disk in the form of a ptree and accessed via one inumber.  
-
-FlatFSUnit.java:  main methods runs tests on FlatFS.  All tests pass.  
+DirEnt.java: directory file structure.  Maintains list of children and other data regarding a directory.  Can create new directory or create directory from meta data and file data from disk.  Exports a directory as a byte array of meta data and byte array of file data.   
 
 SECTION 3:_____
-Our high level design for PTree generally followed the guidlines from the instructions.  We wrote a class to manage the free bit map to keep track of full sectors.  We reserve 4 sectors at the begging of the ADisk to hold all of the pointers to tnodes in the form of ints.  We wrote methods to get and set these pointers by their Tnum.
-TNodes contain the tnum, max seen block id (which allows for the calculation of the height), the meta data, and then a set of two pointers for each tnode pointer.  This is because a block is two sectors and an internal node is two sectors so either way it requires two pointers.  A pointer is a short which is the sector num for the corresponding block.
-Methods are written to get/set pointers in the tnode.  Also to update max seen block id when appropriate during write and get/set meta data.
-Internal nodes are made up by combining two sectors.  Internal nodes are simply a list of pointers to either internal nodes or data blocks.  each possible internal node / date block consists of two pointers written as shorts which is the corresponding sector number.
-The structure of the tree made up of these components follows the outline of the instructions exactly.  Height of the tree is the minimum height given the max block id.  All data blocks are at the bototm of the tree.  Tree supports sparse trees and holes.  
-
-Our design for FlatFS follows the guidlines of the instructions exactly.  This is a very thin wrapper around that of PTree.  An inum is simply the tnum from Ptree.  Most functions simply call corresponding function in PTree given the innum.  Read / Write call Ptree through a loop in order to read multiple blocks and arranges to read the correct number of blocks with the given offset. 
+Our high level design relied heavily on the flat fs for managing files and used a light directory file to wrap things together. The directory contains a list of its child directories and files-- this is made up by two lists a list of names and a list of inodes.  
+Functions move through the tree by reading a directory and getting the inode of the next appropriate node then loading the next directory until it hits the desired file / directory.  Directories have 3 specific char tags in the meta data of the files to identify them as directories. 
+File Descriptors consist of two arrays one entry for each allowed file discriptor.  One for the transID of that file descriptor and one for the inode of a file descriptor.  An unused file descriptor has an innode of -1.  
+Read and writes simply occur by looking up the innode and trans id for a file descriptor and executing the read/write on flat fs below it with this data.  
+Rename assumes the new file name is of the same directory as the old file name.  All functions that can be incorrectly called and return a value return -1 when an error occurs.  
 
 SECTION 4:_____
-Updates via PTree and FlatFS are both guaranteed to be atomic through the use of our ADisk Transactions.  The driver program of either of these classes manages the transactions, but both PTree and FlatFS take transactions as parameters to all functions that impact the data.  These updates are atomic since they use these transactions, because the updates are not written to disk until the transactoin
-is committed.  Committing the transaction is guaranteed to be atomic through the implementation of ADisk.  All disk accesses in PTree and Adisk are made through the transaction infrustructure.  
+RFS ensures that updates are atomic by managing transactions.  All transactions are begun and ended within one function to ensure atomicity with the exception of open / read / write.  These 3 functions ensure atomicity by using the transID from the corresponding File Descriptor used to call the function. 
+When that file descriptor is closed, the transaction is committed ensuring all the updates form the reads and writes to that file were issued atomically.  
 
 SECTION 5:_____
-Our first test in PTree simply does one begin transactoin and commit transaction to make sure that process is working.
-Next test tests the get_param functions to get the parameters of the PTREE.  \
-Next test tests creating a tree and doing one write then one read to a block and comparing the result.  
-Next test tests creating a tree and writing 3 different blocks with different transactions then reads and compares the result. 
-Next test tests creating several trees and reading / writing meta data nad comparing the result. 
-Our last test test writing data to a tree and seeing if the max block id is correct. 
 
-Our first test for FlasFS test simply does one begin transactoin and commit transaction to make sure that process is working.
-Next test tests one begin transactoin and abort transaction to make sure that process is working.
-Next test tests one create file and delete file to make sure that process is working.
-Next test tests write and get meta data for a file and compares. 
-Next test tests get param for FlatFs to ensure it is working properly
-Next test tests writing and reading random blocks in a file and comparing the reusult. 
 
 
 

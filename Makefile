@@ -16,9 +16,9 @@ LAB3_NAME := cs439-labHierFS
 
 JAVAC = javac
 JFLAGS = -g
-JAVA_SRCS = ActiveTransactionList.java Common.java Disk.java DiskWorker.java PTree.java PTreeUnit.java freeBitMap.java \
-	SimpleLock.java WriteBackList.java ADisk.java ADiskUnit.java DirEnt.java DiskResult.java FlatFS.java ResourceException.java Transaction.java \
-	CallbackTracker.java DiskCallback.java DiskUnit.java LogStatus.java RFS.java TransID.java
+JAVA_SRCS = ActiveTransactionList.java Common.java Disk.java DiskWorker.java freeBitMap.java PTree.java PTreeUnit.java  \
+	SimpleLock.java WriteBackList.java ADisk.java ADiskUnit.java DirEnt.java DiskResult.java FlatFS.java FlatFSUnit.java ResourceException.java Transaction.java \
+	CallbackTracker.java DiskCallback.java DiskUnit.java LogStatus.java RFS.java RFSUnit.java TransID.java
 
 CLASSES = $(JAVA_SRCS:.java=.class) $(OTHER_CLASSES)
 

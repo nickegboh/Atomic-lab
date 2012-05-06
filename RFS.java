@@ -117,9 +117,18 @@ public class RFS{
 		  char[] thisName = names[i].toCharArray();
 		  if(i == names.length-1){
 			  int tempInode = fileManager.createFile(transid);
+			  //add directory to parent
+			  tempDirectory.addFile(tempInode, names[i].toCharArray());
+			  //write updated parent to disk 
+			  byte[] metaData = tempDirectory.getMetaData();
+			  byte[] directory = tempDirectory.toByteArray();
+			  fileManager.write(transid, tempDirectory.getInum(), 0, directory.length, directory);
+			  fileManager.writeFileMetadata(transid, tempDirectory.getInum(), metaData);
+			  fileManager.commitTrans(transid);		
+			  //create new directory
 			  DirEnt newDir = new DirEnt(tempInode, names[i].toCharArray(), tempDirectory.getInum());
-			  byte[] metaData = newDir.getMetaData();
-			  byte[] directory = newDir.toByteArray();
+			  metaData = newDir.getMetaData();
+			  directory = newDir.toByteArray();
 			  fileManager.write(transid, tempInode, 0, directory.length, directory);
 			  fileManager.writeFileMetadata(transid, tempInode, metaData);
 		  }
