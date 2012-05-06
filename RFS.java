@@ -35,6 +35,7 @@ public class RFS{
 		  byte[] directory = root.toByteArray();
 		  fileManager.write(tempID, tempInode, 0, directory.length, directory);
 		  fileManager.writeFileMetadata(tempID, tempInode, metaData);
+		  fileManager.commitTrans(tempID);
 	 }
   }
   
@@ -65,8 +66,13 @@ public class RFS{
 		  if(i == names.length-1){
 			  int tempInode = fileManager.createFile(transid);			  
 			  tempDirectory.addFile(tempInode, names[i].toCharArray());
+			  // write updated directory to disk 
+			  byte[] metaData = tempDirectory.getMetaData();
+			  byte[] directory = tempDirectory.toByteArray();
+			  fileManager.write(transid, tempDirectory.getInum(), 0, directory.length, directory);
+			  fileManager.writeFileMetadata(transid, tempDirectory.getInum(), metaData);
+			  fileManager.commitTrans(transid);			  
 			  if(openIt){
-				  fileManager.commitTrans(transid);
 				  return open(filename);
 			  }
 		  }

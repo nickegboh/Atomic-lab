@@ -49,9 +49,12 @@ public class DirEnt{
 	  inodes = new ArrayList<Integer>();
 	  names = new ArrayList<char[]>();
 	  ByteBuffer a = ByteBuffer.wrap(metadata);
-	  assert(a.getChar() == (char)0xFF);
-	  assert(a.getChar() == (char)0x00);
-	  assert(a.getChar() == (char)0xDD);
+	  char tempchar = a.getChar();
+	  assert(tempchar == (char)0xFF);
+	  tempchar = a.getChar();
+	  assert(tempchar == (char)0x00);
+	  tempchar = a.getChar();
+	  assert(tempchar == (char)0xDD);
 	  inum = a.getInt();
 	  int array_size = a.getInt();
 	  for(int i = 0; i < MAX_NAME_LEN_CHAR; i++)
@@ -201,9 +204,12 @@ public class DirEnt{
   //get length of directory to be read in bytes from a directory meta data
   public static int getLengthBytes(byte[] metaData){
 	  ByteBuffer a = ByteBuffer.wrap(metaData);
-	  assert(a.getChar() == (char)0xFF);
-	  assert(a.getChar() == (char)0x00);
-	  assert(a.getChar() == (char)0xDD);
+	  char temp = a.getChar();
+	  assert(temp == (char)0xFF);
+	  temp = a.getChar();
+	  assert(temp == (char)0x00);
+	  temp = a.getChar();
+	  assert(temp == (char)0xDD);
 	  a.getInt();
 	  int array_size = a.getInt();
 	  return ((array_size * 4) + (array_size*16*2));

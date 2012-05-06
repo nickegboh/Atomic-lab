@@ -19,7 +19,7 @@ public class FlatFS{
   public static final int ASK_FILE_METADATA_SIZE = 3502;
   
   public PTree ptree;
-  public static final byte EOF = (byte)28;
+  public static final byte EOF = (byte)1000;
 
   /* This function is the constructor. If doFormat == false, data 
    * stored in previous sessions must remain stored. If doFormat == true, 
